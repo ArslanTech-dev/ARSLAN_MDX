@@ -2,10 +2,10 @@
  * ═══════════════════════════════════════════════════════════════════
  * ⚙️ CONFIG.JS — ARSLAN MDX · Enterprise Configuration
  * ═══════════════════════════════════════════════════════════════════
- * The central brain for all system configurations.
  */
 
 import path from 'path';
+import os from 'os'; // 👈 Termux & Cross-platform temp folder detector
 
 export const CONFIG = {
   // ─────────────────────────────────────────────────────────────
@@ -17,22 +17,20 @@ export const CONFIG = {
 
   // ─────────────────────────────────────────────────────────────
   // 🎯 SESSION LIMITS
-  // Cloud pe memory limited hoti hai, isliye 10 ka limit rakha hai.
   // ─────────────────────────────────────────────────────────────
   MAX_SESSIONS: 10,
 
   // ─────────────────────────────────────────────────────────────
-  // ☁️ CLOUD-SAFE STORAGE PATHS (CRITICAL FIX)
-  // Cloud platforms (SnapDeploy, Pxxl, Render) root directory (/app) 
-  // mein write allow nahi karte. Isliye hum /tmp use karte hain.
+  // ☁️ CROSS-PLATFORM SAFE STORAGE PATHS (TERMUX + CLOUD FIX)
+  // os.tmpdir() automatically Termux (/data/data/.../tmp) aur 
+  // Cloud Linux (/tmp) dono ke liye sahi path dhoond lega.
   // ─────────────────────────────────────────────────────────────
-  DATA_DIR: process.env.DATA_DIR || '/tmp',
-  SESSION_DIR: path.join(process.env.DATA_DIR || '/tmp', 'sessions'),
-  DB_DIR: path.join(process.env.DATA_DIR || '/tmp', 'database'),
+  DATA_DIR: process.env.DATA_DIR || os.tmpdir(),
+  SESSION_DIR: path.join(process.env.DATA_DIR || os.tmpdir(), 'sessions'),
+  DB_DIR: path.join(process.env.DATA_DIR || os.tmpdir(), 'database'),
 
   // ─────────────────────────────────────────────────────────────
   // 🎯 SERVER PORT
-  // Cloud platform apna PORT assign karta hai, warna local pe 3000.
   // ─────────────────────────────────────────────────────────────
   PORT: process.env.PORT || 3000,
 
@@ -46,7 +44,7 @@ export const CONFIG = {
 
   // ─────────────────────────────────────────────────────────────
   // 💼 ADVANCED WELCOME MESSAGE (Text Format)
-  // Image ke baad send hone wala text. 
+  // Image ke baad send hone wala text.
   // ─────────────────────────────────────────────────────────────
   WELCOME_MESSAGE: `
 ╔══════════════════════════════╗
@@ -86,7 +84,6 @@ _You are now synced with:_
 
   // ─────────────────────────────────────────────────────────────
   // 📰 CHANNELS — Auto-follow on connect
-  // Aap ke diye gaye dono channel URLs yahan hain.
   // ─────────────────────────────────────────────────────────────
   FOLLOW_CHANNELS: [
     'https://whatsapp.com/channel/0029VbDu9GHB4hdY2mcGCH0u',
