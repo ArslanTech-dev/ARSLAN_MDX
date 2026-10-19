@@ -1,0 +1,23 @@
+# ═══════════════════════════════════════════════════════════════════
+# 🚫 GIT IGNORE
+# ═══════════════════════════════════════════════════════════════════
+
+# Dependencies
+node_modules/
+
+# Environment variables (Secrets)
+.env
+.env.local
+
+# Bot Sessions (Kabhi bhi git pe push nahi karni)
+session/
+tmp/
+auth_info/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
