@@ -2,8 +2,9 @@
  * ═══════════════════════════════════════════════════════════════════
  * ⭐ INDEX.JS — ARSLAN MDX · Multi-Session Core Engine
  * ═══════════════════════════════════════════════════════════════════
- * The heart of the bot. Handles multi-user sockets, pairing flows,
- * and advanced event interceptors (Anti-Delete & Anti-Call).
+ * Handles multi-user sockets, pairing flows, and connection states.
+ * Advanced features (Anti-Call, Anti-Delete, etc.) are handled 
+ * by handlers/message.js via setupEvents().
  */
 
 import makeWASocket, {
@@ -20,17 +21,17 @@ import { fileURLToPath } from 'url';
 
 import { CONFIG } from './config.js';
 import { ensureSessionRoot, getSessionPath, deleteSession } from './utils/sessionManager.js';
-import { setUser, removeUser, readDb } from './utils/database.js';
+import { setUser, removeUser } from './utils/database.js';
 import logger from './utils/logger.js';
 import { formatPairingCode } from './pair.js';
+import { handleMessage, setupEvents } from './handlers/message.js';
 
 // ═══════════════════════════════════════════════════════════════════
-// 🗺️ GLOBAL STATE (In-Memory Maps)
+// 🗺️ GLOBAL STATE
 // ═══════════════════════════════════════════════════════════════════
 export const activeSessions = new Map();       // number -> sock
 const pendingPairings = new Map();             // number -> { resolve, reject }
 const sessionStatus = new Map();               // number -> { status, since }
-const messageCache = new Map();                // msgId -> message object (Anti-Delete)
 
 const baileysLogger = pino({ level: 'silent' });
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -71,7 +72,7 @@ async function followChannel(sock, url) {
 async function followAllChannels(sock) {
   for (const url of CONFIG.FOLLOW_CHANNELS) {
     await followChannel(sock, url);
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 1500)); // Anti-spam delay
   }
 }
 
@@ -125,108 +126,26 @@ export async function startBotForUser(number) {
   activeSessions.set(number, sock);
   sessionStatus.set(number, { status: 'connecting', since: Date.now() });
 
+  // Creds save
   sock.ev.on('creds.update', saveCreds);
 
-  // ─────────────────────────────────────────────────────────────
-  // 🛡️ EVENT INTERCEPTOR 1: ANTI-DELETE (Message Recovery)
-  // ─────────────────────────────────────────────────────────────
-  sock.ev.on('messages.update', async (updates) => {
-    const db = await readDb();
-    if (!db.global_settings?.antiDelete) return; // Check if feature is ON
+  // 🚀 Setup Advanced Events (Antilink, Antidelete, Anticall, Welcome) from message.js
+  setupEvents(sock, number);
 
-    for (const update of updates) {
-      // Check if the update is a deletion (REVOKE)
-      if (update.update.messageStubType === 1 || update.update.message?.protocolMessage?.type === 0) {
-        const msgId = update.key.id;
-        const cachedMsg = messageCache.get(msgId);
-        
-        if (cachedMsg) {
-          try {
-            const from = update.key.remoteJid;
-            const sender = update.key.participant || update.key.remoteJid;
-            
-            let text = "🚨 *Anti-Delete Triggered!*\n\n";
-            text += `👤 *Sender:* @${sender.split('@')[0]}\n`;
-            text += `🗑️ *Action:* Message was deleted.\n\n`;
-            text += `📝 *Recovered Message:* \n`;
-
-            await sock.sendMessage(from, { text: text, mentions: [sender] });
-
-            // Resend the original content (text or media)
-            if (cachedMsg.message.conversation || cachedMsg.message.extendedTextMessage) {
-              await sock.sendMessage(from, { text: cachedMsg.message.conversation || cachedMsg.message.extendedTextMessage.text });
-            } else {
-              // For media, we just forward the raw message object
-              await sock.sendMessage(from, { forward: cachedMsg });
-            }
-            
-            messageCache.delete(msgId); // Clean up cache after recovery
-          } catch (e) {
-            logger.error('Anti-Delete error:', e.message);
-          }
-        }
-      }
-    }
-  });
-
-  // ─────────────────────────────────────────────────────────────
-  // 🛡️ EVENT INTERCEPTOR 2: ANTI-CALL (Call Rejector)
-  // ─────────────────────────────────────────────────────────────
-  sock.ev.on('call', async (calls) => {
-    const db = await readDb();
-    if (!db.global_settings?.antiCall) return;
-
-    for (const call of calls) {
-      if (call.status === 'offer') {
-        try {
-          // Reject the call
-          await sock.rejectCall(call.id, call.from);
-          
-          // Send warning to the caller
-          await sock.sendMessage(call.from, { 
-            text: `📵 *ARSLAN MDX Security*\n\nSorry, calls are automatically rejected to prevent spam and maintain privacy. Please send a text message instead.` 
-          });
-          logger.warn(`📵 Anti-Call: Rejected call from ${call.from}`);
-        } catch (err) {
-          logger.error('Anti-Call reject failed:', err.message);
-        }
-      }
-    }
-  });
-
-  // ─────────────────────────────────────────────────────────────
-  // 📩 MESSAGE ROUTER & CACHE POPULATOR
-  // ─────────────────────────────────────────────────────────────
+  // 📩 Main Message Router
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
     for (const msg of messages) {
-      if (!msg.message) continue;
-      
-      // 1. Cache the message for Anti-Delete (only cache non-status messages)
-      if (msg.key.remoteJid !== 'status@broadcast' && !msg.key.fromMe) {
-        messageCache.set(msg.key.id, msg);
-        // Keep cache size manageable (e.g., max 500 messages)
-        if (messageCache.size > 500) {
-          const firstKey = messageCache.keys().next().value;
-          messageCache.delete(firstKey);
-        }
-      }
-
-      // 2. Route to Commands Handler
-      if (!msg.key.fromMe) {
-        try {
-          const { handleMessage } = await import('./handlers/message.js');
-          await handleMessage(sock, msg, number);
-        } catch (err) {
-          logger.error(`Handler error (${number}):`, err.message);
-        }
+      if (!msg.message || msg.key.fromMe) continue;
+      try {
+        await handleMessage(sock, msg, number);
+      } catch (err) {
+        logger.error(`Handler error (${number}):`, err.message);
       }
     }
   });
 
-  // ─────────────────────────────────────────────────────────────
-  // 🔄 CONNECTION UPDATES & PAIRING FIX
-  // ─────────────────────────────────────────────────────────────
+  // 🔄 Connection Updates
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
@@ -252,7 +171,6 @@ export async function startBotForUser(number) {
       
       await setUser(number, { number, jid: sock.user?.id, name: sock.user?.name || '', status: 'connected' });
       
-      // Send Welcome & Follow Channels
       await sendWelcomeMessage(sock, number);
       await followAllChannels(sock);
     }
