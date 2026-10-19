@@ -1,0 +1,25 @@
+{
+  "name": "arslan-mdx",
+  "version": "1.0.0",
+  "description": "ARSLAN MDX — Enterprise Multi-User WhatsApp Bot.",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc.9",
+    "@hapi/boom": "^10.0.1",
+    "express": "^4.21.2",
+    "fs-extra": "^11.3.0",
+    "pino": "^9.6.0",
+    "qrcode-terminal": "^0.12.0",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "author": "Arslan Tech",
+  "license": "MIT"
+}
