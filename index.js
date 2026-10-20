@@ -2,8 +2,8 @@
  * ═══════════════════════════════════════════════════════════════════
  * ⭐ INDEX.JS — ARSLAN MDX · Multi-Session Core Engine
  * ═══════════════════════════════════════════════════════════════════
- * Handles multi-user sockets, pairing flows, and connection states.
- * Fixed: Baileys rc.14, canonical browser pairing, and smart reconnect.
+ * Powered by ms-nicky-baileys.
+ * Features: Auto 515 reconnect, native canonical browser labels.
  */
 
 import makeWASocket, {
@@ -11,8 +11,8 @@ import makeWASocket, {
   DisconnectReason,
   makeCacheableSignalKeyStore,
   fetchLatestWaWebVersion,
-  Browsers, // 🚀 Added for canonical browser
 } from '@whiskeysockets/baileys';
+
 import { Boom } from '@hapi/boom';
 import pino from 'pino';
 import fs from 'fs-extra';
@@ -119,8 +119,8 @@ export async function startBotForUser(number) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
     },
-    // 🚀 Canonical browser config (fixes silent pairing failure)
-    browser: Browsers.macOS('Chrome'), 
+    // 🚀 Nicky's baileys handles canonical browser labels automatically.
+    browser: ['ARSLAN MDX', 'Chrome', '1.0.0'], 
     generateHighQualityLinkPreview: true,
     markOnlineOnConnect: false,
     syncFullHistory: false,
@@ -134,7 +134,7 @@ export async function startBotForUser(number) {
   sock.ev.on('creds.update', saveCreds);
   setupEvents(sock, number);
 
-  let hasOpenedOnce = false; // 🚀 Guard to prevent reconnect loop if never opened
+  let hasOpenedOnce = false; // 🚀 Prevent reconnect loop if pairing fails
 
   // 📩 Message Router
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
@@ -157,7 +157,8 @@ export async function startBotForUser(number) {
     if (qr && pendingPairings.has(number) && !sock.authState.creds.registered) {
       const pending = pendingPairings.get(number);
       try {
-        await new Promise(r => setTimeout(r, 1200)); // Wait for socket to stabilize
+        // Nicky's baileys sometimes needs a tiny delay for socket stabilization
+        await new Promise(r => setTimeout(r, 1000)); 
         const raw = await sock.requestPairingCode(number);
         const code = formatPairingCode(raw);
         
@@ -190,12 +191,12 @@ export async function startBotForUser(number) {
       activeSessions.delete(number);
       sessionStatus.delete(number);
 
-      // 🚀 CRITICAL FIX: Agar kabhi OPEN nahi hua (pairing fail), toh reconnect mat karo
+      // 🚀 CRITICAL FIX: If it never opened (pairing failed), don't loop
       if (!hasOpenedOnce) {
         await deleteSession(number);
         const pending = pendingPairings.get(number);
         if (pending) {
-          pending.reject(new Error('Pairing fail — code expire ho gaya ya WhatsApp ne reject kiya. Naya code generate karein.'));
+          pending.reject(new Error('Pairing fail — code expire ho gaya ya WhatsApp ne reject kiya.'));
           pendingPairings.delete(number);
         }
         logger.warn(`[Pairing] ${number} never opened (code ${code}) — session purged, NO reconnect`);
@@ -223,7 +224,7 @@ export async function startBotForUser(number) {
 // 🔐 CREATE PAIRING CODE
 // ═══════════════════════════════════════════════════════════════════
 export async function createPairingCode(number) {
-  // 🚀 Fresh start: purana adhoora session pehle delete karo
+  // Fresh start: agar active nahi hai to purana half-baked session delete karo
   if (!activeSessions.has(number)) {
     await deleteSession(number);
   }
