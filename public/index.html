@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARSLAN MDX — Premium Bot Infrastructure</title>
+  <script src="/config.js"></script>
+  <style>
+    /* ═══════════════════════════════════════════════════════════
+       🎨 THEME VARIABLES
+       ═══════════════════════════════════════════════════════════ */
+    :root {
+      --bg-dark: #030308;
+      --card-bg: rgba(12, 14, 22, 0.65);
+      --primary-cyan: #00d2ff;
+      --primary-purple: #a855f7;
+      --cyan-glow: rgba(0, 210, 255, 0.4);
+      --text-main: #ffffff;
+      --text-muted: #8b9bb4;
+      --border-color: rgba(255, 255, 255, 0.06);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --green: #22c55e;
+      --red: #ef4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-main);
+      line-height: 1.6;
+    }
+
+    /* 🎨 Background Effects */
+    .bg-layer {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: -2;
+      background:
+        radial-gradient(circle at 15% 30%, rgba(0, 210, 255, 0.06) 0%, transparent 40%),
+        radial-gradient(circle at 85% 70%, rgba(168, 85, 247, 0.06) 0%, transparent 40%);
+    }
+
+    .bg-grid {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: -1;
+      background-size: 40px 40px;
+      background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+      -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+    }
+
+    /* 🏷️ NAVBAR */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 70px;
+      background: rgba(3, 3, 8, 0.75);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--border-color);
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0 5%;
+      z-index: 100;
+    }
+    .nav-brand {
+      font-size: 1.25rem; font-weight: 800; letter-spacing: 1px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .nav-brand .logo-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--primary-cyan), var(--primary-purple));
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      box-shadow: 0 0 15px var(--cyan-glow);
+    }
+    .nav-brand span.accent {
+      background: linear-gradient(135deg, var(--primary-cyan), var(--primary-purple));
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .status-indicator {
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 1px;
+      color: var(--text-muted);
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 6px 12px; border-radius: 20px;
+      border: 1px solid var(--border-color);
+    }
+    .dot {
+      width: 6px; height: 6px; background: var(--green); border-radius: 50%;
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* 🦸 HERO */
+    .hero {
+      margin-top: 130px; text-align: center; padding: 0 20px;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800; letter-spacing: -1px; margin-bottom: 16px;
+      background: linear-gradient(to right, #ffffff, #8b9bb4);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
+    }
+    .hero p {
+      color: var(--text-muted); font-size: 1.05rem;
+      max-width: 600px; margin: 0 auto;
+    }
+
+    /* 🃏 CONNECTION CARD */
+    .main-container {
+      display: flex; justify-content: center;
+      padding: 50px 20px; position: relative; z-index: 10;
+    }
+    .connection-card {
+      width: 100%; max-width: 520px;
+      background: var(--card-bg);
+      backdrop-filter: blur(40px);
+      -webkit-backdrop-filter: blur(40px);
+      border-radius: 16px; padding: 40px;
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.8),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      position: relative;
+    }
+    .connection-card::before {
+      content: ''; position: absolute;
+      top: -1px; left: -1px; right: -1px; bottom: -1px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--cyan-glow), transparent 40%);
+      z-index: -1; opacity: 0.3;
+    }
+    .connection-card h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 8px; }
+    .connection-card .subtitle {
+      font-size: 0.9rem; color: var(--text-muted); margin-bottom: 35px;
+    }
+
+    /* 📝 STEPS INDICATOR */
+    .steps-indicator {
+      display: flex; justify-content: space-between;
+      margin-bottom: 35px; position: relative;
+    }
+    .step {
+      text-align: center; position: relative; z-index: 1;
+      flex: 1;
+    }
+    .step-number {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 8px; font-size: 0.8rem; font-weight: 600;
+      color: var(--text-muted);
+    }
+    .step.active .step-number {
+      background: var(--primary-cyan); color: #000;
+      box-shadow: 0 0 15px var(--cyan-glow);
+    }
+    .step-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .step.active .step-label { color: var(--text-main); }
+
+    /* 🔽 SERVER SELECT */
+    .server-select {
+      margin-bottom: 20px;
+    }
+    .server-select label {
+      display: block; font-size: 0.8rem; color: var(--text-muted);
+      margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .server-dropdown {
+      width: 100%; padding: 14px 18px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border-color);
+      border-radius: 10px; color: var(--text-main);
+      font-size: 0.95rem; outline: none; cursor: pointer;
+      transition: all 0.3s;
+    }
+    .server-dropdown:focus {
+      border-color: var(--primary-cyan);
+      box-shadow: 0 0 15px var(--cyan-glow);
+    }
+    .server-dropdown option {
+      background: var(--bg-dark); color: var(--text-main);
+    }
+
+    /* 📱 NUMBER INPUT */
+    #numberInput {
+      width: 100%; padding: 16px 18px; margin-bottom: 20px;
+      border: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.5);
+      color: var(--text-main); border-radius: 10px;
+      font-family: inherit; font-size: 0.95rem; outline: none;
+      transition: all 0.3s ease;
+    }
+    #numberInput:focus {
+      border-color: var(--primary-cyan);
+      box-shadow: 0 0 15px var(--cyan-glow);
+      background: rgba(0, 0, 0, 0.8);
+    }
+    #numberInput::placeholder { color: var(--text-muted); }
+
+    /* 🔘 PAIR BUTTON */
+    .primary-btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--primary-cyan), var(--primary-purple));
+      color: #000; border: none;
+      padding: 16px; border-radius: 10px;
+      font-family: inherit; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: all 0.3s;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      position: relative; overflow: hidden;
+    }
+    .primary-btn:hover {
+      box-shadow: 0 0 25px var(--cyan-glow);
+      transform: translateY(-2px);
+    }
+    .primary-btn:disabled {
+      opacity: 0.5; cursor: not-allowed; transform: none;
+    }
+
+    /* 📋 PAIRING CODE DISPLAY */
+    .pair-result {
+      margin-top: 25px; padding: 20px;
+      background: rgba(0, 210, 255, 0.08);
+      border: 1px dashed var(--primary-cyan);
+      border-radius: 10px; text-align: center;
+      display: none;
+    }
+    .pair-result.show { display: block; animation: fadeIn 0.5s; }
+    .pair-code {
+      font-size: 2rem; font-weight: 900;
+      letter-spacing: 6px; color: var(--primary-cyan);
+      text-shadow: 0 0 20px var(--cyan-glow);
+      margin-bottom: 10px;
+    }
+    .pair-hint {
+      font-size: 0.75rem; color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .copy-btn {
+      margin-top: 10px; padding: 8px 20px;
+      background: transparent; border: 1px solid var(--primary-cyan);
+      color: var(--primary-cyan); border-radius: 20px;
+      font-size: 0.8rem; cursor: pointer; transition: all 0.3s;
+    }
+    .copy-btn:hover { background: var(--primary-cyan); color: #000; }
+
+    /* 📊 ACTIVE SESSIONS */
+    .sessions-section {
+      max-width: 900px; margin: 0 auto 60px; padding: 0 20px;
+    }
+    .sessions-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px;
+    }
+    .sessions-header h2 { font-size: 1.3rem; font-weight: 600; }
+    .session-stats {
+      font-size: 0.85rem; color: var(--primary-cyan);
+      font-weight: 700; background: rgba(0, 210, 255, 0.1);
+      padding: 6px 14px; border-radius: 20px;
+      border: 1px solid rgba(0, 210, 255, 0.2);
+    }
+    .session-list { display: flex; flex-direction: column; gap: 12px; }
+    .session-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 20px; background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      transition: all 0.3s;
+    }
+    .session-item:hover {
+      border-color: rgba(0, 210, 255, 0.3);
+      background: rgba(0, 210, 255, 0.05);
+    }
+    .session-info { display: flex; align-items: center; gap: 15px; }
+    .avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary-cyan), var(--primary-purple));
+      display: grid; place-items: center;
+      font-weight: 900; color: #000; font-size: 0.9rem;
+    }
+    .session-details .num { font-weight: 700; font-size: 0.95rem; }
+    .session-details .name { font-size: 0.75rem; color: var(--text-muted); }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    }
+    .status-pill.connected {
+      background: rgba(34, 197, 94, 0.15); color: var(--green);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    .status-pill.connecting {
+      background: rgba(245, 158, 11, 0.15); color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .btn-unpair {
+      padding: 8px 16px; border-radius: 8px;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      background: rgba(239, 68, 68, 0.1); color: var(--red);
+      font-size: 0.8rem; font-weight: 600; cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn-unpair:hover { background: rgba(239, 68, 68, 0.25); }
+
+    .empty-state {
+      text-align: center; padding: 40px 20px;
+      color: var(--text-muted); font-size: 0.9rem;
+      background: var(--card-bg); border: 1px dashed var(--border-color);
+      border-radius: 12px;
+    }
+
+    /* 📖 HOW IT WORKS & FEATURES */
+    .section {
+      max-width: 1000px; margin: 0 auto 60px; padding: 0 20px;
+      text-align: center;
+    }
+    .section h2 {
+      font-size: 2rem; font-weight: 700; margin-bottom: 12px;
+      background: linear-gradient(to right, #ffffff, #8b9bb4);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .section p.subtitle {
+      color: var(--text-muted); margin-bottom: 40px;
+    }
+    .steps-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+    .step-card {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: 12px; padding: 24px;
+      transition: all 0.3s;
+    }
+    .step-card:hover {
+      border-color: rgba(0, 210, 255, 0.3);
+      transform: translateY(-4px);
+    }
+    .step-card .icon { font-size: 1.8rem; margin-bottom: 12px; }
+    .step-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+    .step-card p { font-size: 0.8rem; color: var(--text-muted); }
+
+    .features-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      border-radius: 12px; padding: 24px;
+      transition: all 0.3s;
+    }
+    .feature-card:hover {
+      border-color: rgba(0, 210, 255, 0.3);
+      transform: translateY(-4px);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+    }
+    .feature-card .icon { font-size: 1.8rem; margin-bottom: 12px; }
+    .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+    .feature-card p { font-size: 0.8rem; color: var(--text-muted); }
+
+    /* 🏁 FOOTER */
+    .footer {
+      border-top: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.5);
+      padding: 40px 20px; text-align: center;
+    }
+    .footer-brand {
+      font-size: 1.3rem; font-weight: 800; margin-bottom: 8px;
+    }
+    .footer-brand span.accent {
+      background: linear-gradient(135deg, var(--primary-cyan), var(--primary-purple));
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .footer p { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; }
+    .footer .dedication { font-size: 0.75rem; color: var(--primary-purple); font-style: italic; }
+
+    /* ⏳ ANIMATIONS */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 📱 RESPONSIVE */
+    @media (max-width: 768px) {
+      .steps-grid, .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .connection-card { padding: 30px 20px; }
+      .hero h1 { font-size: 2rem; }
+    }
+    @media (max-width: 480px) {
+      .steps-grid, .features-grid { grid-template-columns: 1fr; }
+      .session-item { flex-direction: column; align-items: flex-start; gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 🎨 Background Effects -->
+  <div class="bg-layer"></div>
+  <div class="bg-grid"></div>
+
+  <!-- 🏷️ NAVBAR -->
+  <nav class="navbar">
+    <div class="nav-brand">
+      <div class="logo-icon"></div>
+      <span>ARSLAN <span class="accent">MDX</span></span>
+    </div>
+    <div class="status-indicator">
+      <span class="dot"></span> SYSTEM ONLINE
+    </div>
+  </nav>
+
+  <!-- 🦸 HERO -->
+  <header class="hero">
+    <h1>Connect Your WhatsApp Bot</h1>
+    <p>Select a verified server, enter your WhatsApp number, and securely generate your pairing code.</p>
+  </header>
+
+  <!-- 🃏 CONNECTION CARD -->
+  <section class="main-container">
+    <div class="connection-card">
+      <h2>Connect WhatsApp</h2>
+      <p class="subtitle">Complete the setup wizard below to initialize your session.</p>
+
+      <!-- Steps Indicator -->
+      <div class="steps-indicator">
+        <div class="step active">
+          <div class="step-number">01</div>
+          <div class="step-label">Select Server</div>
+        </div>
+        <div class="step active">
+          <div class="step-number">02</div>
+          <div class="step-label">Enter Number</div>
+        </div>
+        <div class="step">
+          <div class="step-number">03</div>
+          <div class="step-label">Pairing Code</div>
+        </div>
+      </div>
+
+      <!-- Server Select -->
+      <div class="server-select">
+        <label for="serverSelect">Choose an available server</label>
+        <select id="serverSelect" class="server-dropdown">
+          <option value="server1">Server 01 — Primary</option>
+          <option value="server2">Server 02 — Backup</option>
+          <option value="server3">Server 03 — High Speed</option>
+          <option value="server4">Server 04 — Cloud Edge</option>
+        </select>
+      </div>
+
+      <!-- Number Input -->
+      <input id="numberInput" type="tel" placeholder="Enter your WhatsApp number (e.g. 923001234567)" autocomplete="off" />
+
+      <!-- Pair Button -->
+      <button id="generateBtn" class="primary-btn">
+        <span>⚡ Generate Pairing Code</span>
+      </button>
+
+      <!-- Pairing Code Display -->
+      <div class="pair-result" id="pairResult">
+        <div class="pair-code" id="pairCode">──── ────</div>
+        <p class="pair-hint" id="pairHint">
+          Open WhatsApp → Linked Devices → Link a Device → Enter this code.
+        </p>
+        <button class="copy-btn" id="copyBtn">📋 Copy Code</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 📊 ACTIVE SESSIONS -->
+  <section class="sessions-section">
+    <div class="sessions-header">
+      <h2>Active Sessions</h2>
+      <div class="session-stats" id="statTotal">0 / 10 Connected</div>
+    </div>
+    <div class="session-list" id="sessionList">
+      <div class="empty-state">
+        No active connections detected. System standing by.
+      </div>
+    </div>
+  </section>
+
+  <!-- 📖 HOW IT WORKS -->
+  <section class="section">
+    <h2>How It Works</h2>
+    <p class="subtitle">Four simple steps to automate your WhatsApp.</p>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="icon">🖥️</div>
+        <h3>Select Node</h3>
+        <p>Choose an available ARSLAN MDX server from the dropdown list.</p>
+      </div>
+      <div class="step-card">
+        <div class="icon">🆔</div>
+        <h3>Enter Identity</h3>
+        <p>Input your WhatsApp number with the correct country code.</p>
+      </div>
+      <div class="step-card">
+        <div class="icon">🔐</div>
+        <h3>Generate Securely</h3>
+        <p>Request your official WhatsApp pairing code payload.</p>
+      </div>
+      <div class="step-card">
+        <div class="icon">🤝</div>
+        <h3>Handshake</h3>
+        <p>Enter the code inside WhatsApp Linked Devices to verify.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 💎 WHY CHOOSE ARSLAN MDX -->
+  <section class="section">
+    <h2>Why ARSLAN MDX?</h2>
+    <p class="subtitle">Built for professional multi-session WhatsApp automation.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="icon">⚡</div>
+        <h3>Multi-Session Engine</h3>
+        <p>Independent, parallel WhatsApp sessions with zero interference.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🛡️</div>
+        <h3>Server Isolation</h3>
+        <p>Dedicated session separation for maximum security and uptime.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔒</div>
+        <h3>Security Controls</h3>
+        <p>Advanced protection for administrative commands and data.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🤝</div>
+        <h3>Official Handshake</h3>
+        <p>Secure official device pairing with Baileys v7 engine.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 🏁 FOOTER -->
+  <footer class="footer">
+    <div class="footer-brand">
+      ARSLAN <span class="accent">MDX</span>
+    </div>
+    <p>© 2024 ARSLAN MDX. Premium Bot Infrastructure.</p>
+    <p class="dedication">💖 For brown hair wali — my everything.</p>
+  </footer>
+
+  <!-- 🧠 LOGIC -->
+  <script>
+    const API_URL = (window.ARSLAN_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+
+    const numberInput = document.getElementById('numberInput');
+    const generateBtn = document.getElementById('generateBtn');
+    const pairResult = document.getElementById('pairResult');
+    const pairCode = document.getElementById('pairCode');
+    const pairHint = document.getElementById('pairHint');
+    const copyBtn = document.getElementById('copyBtn');
+    const sessionListEl = document.getElementById('sessionList');
+    const statTotal = document.getElementById('statTotal');
+    const serverSelect = document.getElementById('serverSelect');
+
+    let currentCode = '';
+
+    /* ═══════════════════════════════════════════════════════════
+       🚀 GENERATE PAIRING CODE
+       ═══════════════════════════════════════════════════════════ */
+    async function generatePairingCode() {
+      const cleaned = numberInput.value.replace(/\D/g, '');
+      if (cleaned.length < 10) {
+        alert('Please enter a valid phone number with country code.');
+        return;
+      }
+
+      generateBtn.disabled = true;
+      generateBtn.innerHTML = '<span>⏳ Connecting...</span>';
+      pairResult.classList.remove('show');
+
+      try {
+        const res = await fetch(`${API_URL}/api/pair`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number: cleaned, server: serverSelect.value })
+        });
+        const data = await res.json();
+
+        if (!data.success) throw new Error(data.error || 'Pairing failed');
+
+        currentCode = data.code;
+        pairCode.textContent = data.code;
+        pairHint.innerHTML =
+          'On WhatsApp: <b>Settings → Linked Devices → Link with phone number</b>. You have <b>60 seconds</b>.';
+        pairResult.classList.add('show');
+        setTimeout(refreshStatus, 2000);
+      } catch (err) {
+        pairCode.textContent = '── ERROR ──';
+        pairHint.textContent = err.message;
+        pairResult.classList.add('show');
+        pairCode.style.color = 'var(--red)';
+        pairCode.style.textShadow = '0 0 15px var(--red)';
+      } finally {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<span>⚡ Generate Pairing Code</span>';
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       📋 COPY CODE
+       ═══════════════════════════════════════════════════════════ */
+    copyBtn.addEventListener('click', () => {
+      if (!currentCode) return;
+      navigator.clipboard.writeText(currentCode).then(() => {
+        copyBtn.textContent = '✅ Copied!';
+        setTimeout(() => (copyBtn.textContent = '📋 Copy Code'), 2000);
+      });
+    });
+
+    /* ═══════════════════════════════════════════════════════════
+       📊 REFRESH STATUS (Polling every 5s)
+       ═══════════════════════════════════════════════════════════ */
+    async function refreshStatus() {
+      try {
+        const res = await fetch(`${API_URL}/api/status`);
+        const data = await res.json();
+        if (!data.success) return;
+
+        statTotal.textContent = `${data.totalSessions} / ${data.maxSessions} Connected`;
+
+        if (!data.sessions || data.sessions.length === 0) {
+          sessionListEl.innerHTML = `
+            <div class="empty-state">
+              No active connections detected. System standing by.
+            </div>`;
+          return;
+        }
+
+        sessionListEl.innerHTML = data.sessions.map((s) => {
+          const statusClass = s.status === 'connected' ? 'connected' : 'connecting';
+          const initial = (s.number || '?').slice(-2);
+          return `
+            <div class="session-item">
+              <div class="session-info">
+                <div class="avatar">${escapeHtml(initial)}</div>
+                <div class="session-details">
+                  <div class="num">+${escapeHtml(s.number)}</div>
+                  <div class="name">${escapeHtml(s.name || 'WhatsApp User')}</div>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span class="status-pill ${statusClass}">
+                  <span class="dot" style="background:currentColor; box-shadow:none;"></span>
+                  ${escapeHtml(s.status)}
+                </span>
+                <button class="btn-unpair" data-number="${escapeHtml(s.number)}">Unpair</button>
+              </div>
+            </div>`;
+        }).join('');
+      } catch (err) {
+        console.error('Status refresh failed:', err);
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       🗑️ UNPAIR SESSION
+       ═══════════════════════════════════════════════════════════ */
+    async function unpairSession(number) {
+      if (!confirm(`Unpair +${number}?`)) return;
+      try {
+        const res = await fetch(`${API_URL}/api/unpair`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error('Unpair failed');
+        refreshStatus();
+      } catch (err) {
+        alert(err.message || 'Failed to unpair');
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       🛡️ HTML ESCAPE (XSS Protection)
+       ═══════════════════════════════════════════════════════════ */
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = String(str ?? '');
+      return d.innerHTML;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       🖱️ EVENT LISTENERS (Event Delegation)
+       ═══════════════════════════════════════════════════════════ */
+    generateBtn.addEventListener('click', generatePairingCode);
+    numberInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') generatePairingCode();
+    });
+
+    sessionListEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-unpair');
+      if (!btn) return;
+      const num = btn.getAttribute('data-number');
+      if (num) unpairSession(num);
+    });
+
+    /* ═══════════════════════════════════════════════════════════
+       ⏱️ INITIAL LOAD & POLLING
+       ═══════════════════════════════════════════════════════════ */
+    refreshStatus();
+    setInterval(refreshStatus, 5000);
+  </script>
+</body>
+</html>
