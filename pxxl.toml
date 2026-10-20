@@ -1,0 +1,6 @@
+[build]
+language = "javascript"
+framework = "express"
+port = 3000
+installCommand = "npm install --legacy-peer-deps"
+startCommand = "node server.js"
