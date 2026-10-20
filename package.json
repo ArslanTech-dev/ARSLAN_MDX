@@ -9,7 +9,7 @@
     "dev": "node --watch server.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "7.0.0-rc.9",
+    "@whiskeysockets/baileys": "7.0.0-rc.14",
     "@hapi/boom": "^10.0.1",
     "express": "^4.21.2",
     "fs-extra": "^11.3.0",
