@@ -3,14 +3,15 @@
  * ⭐ INDEX.JS — ARSLAN MDX · Multi-Session Core Engine
  * ═══════════════════════════════════════════════════════════════════
  * Handles multi-user sockets, pairing flows, and connection states.
- * Fixed: Baileys v7 silent drop, Web Version mismatch, and Browser config.
+ * Fixed: Baileys rc.14, canonical browser pairing, and smart reconnect.
  */
 
 import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
   makeCacheableSignalKeyStore,
-  fetchLatestWaWebVersion, // 🚀 FIX 1: Use latest WA Web version
+  fetchLatestWaWebVersion,
+  Browsers, // 🚀 Added for canonical browser
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import pino from 'pino';
@@ -106,14 +107,10 @@ export async function startBotForUser(number) {
     throw new Error(`Max ${CONFIG.MAX_SESSIONS} sessions reached.`);
   }
 
-  // Load Auth
   const { state, saveCreds } = await useMultiFileAuthState(getSessionPath(number));
-  
-  // 🚀 FIX 1: Fetch Latest WhatsApp Web Version
   const { version, isLatest } = await fetchLatestWaWebVersion({});
   logger.info(`[Baileys] Using WA v${version.join('.')}, isLatest: ${isLatest}`);
 
-  // Create Socket
   const sock = makeWASocket({
     version,
     logger: baileysLogger,
@@ -122,21 +119,22 @@ export async function startBotForUser(number) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
     },
-    // 🚀 FIX 2: Trick WhatsApp that this is a legit Chrome Windows browser
-    browser: ['ARSLAN MDX', 'Chrome', '1.0.0'], 
-    companionPlatformDisplay: 'Chrome (Windows)', 
+    // 🚀 Canonical browser config (fixes silent pairing failure)
+    browser: Browsers.macOS('Chrome'), 
     generateHighQualityLinkPreview: true,
     markOnlineOnConnect: false,
-    syncFullHistory: false, // Keeps memory low
+    syncFullHistory: false,
+    connectTimeoutMs: 60_000,
+    defaultQueryTimeoutMs: 60_000,
   });
 
   activeSessions.set(number, sock);
   sessionStatus.set(number, { status: 'connecting', since: Date.now() });
 
   sock.ev.on('creds.update', saveCreds);
-  
-  // Setup Events (Antilink, Antidelete, etc.)
   setupEvents(sock, number);
+
+  let hasOpenedOnce = false; // 🚀 Guard to prevent reconnect loop if never opened
 
   // 📩 Message Router
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
@@ -155,12 +153,11 @@ export async function startBotForUser(number) {
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    // 🚀 FIX 3: Generate Pairing Code ONLY after QR event and if NOT registered
+    // 1. Pairing code logic
     if (qr && pendingPairings.has(number) && !sock.authState.creds.registered) {
       const pending = pendingPairings.get(number);
       try {
-        // Delay of 1 second to ensure socket is fully ready
-        await new Promise(r => setTimeout(r, 1000)); 
+        await new Promise(r => setTimeout(r, 1200)); // Wait for socket to stabilize
         const raw = await sock.requestPairingCode(number);
         const code = formatPairingCode(raw);
         
@@ -174,7 +171,9 @@ export async function startBotForUser(number) {
       }
     }
 
+    // 2. Connected
     if (connection === 'open') {
+      hasOpenedOnce = true;
       logger.success(`✅ Session OPEN: ${number}`);
       sessionStatus.set(number, { status: 'connected', since: Date.now() });
       
@@ -184,15 +183,27 @@ export async function startBotForUser(number) {
       await followAllChannels(sock);
     }
 
+    // 3. Disconnected
     if (connection === 'close') {
       const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
-      const loggedOut = code === DisconnectReason.loggedOut;
-      logger.warn(`❌ Session CLOSED: ${number} (Code: ${code})`);
-
+      
       activeSessions.delete(number);
       sessionStatus.delete(number);
 
-      if (loggedOut) {
+      // 🚀 CRITICAL FIX: Agar kabhi OPEN nahi hua (pairing fail), toh reconnect mat karo
+      if (!hasOpenedOnce) {
+        await deleteSession(number);
+        const pending = pendingPairings.get(number);
+        if (pending) {
+          pending.reject(new Error('Pairing fail — code expire ho gaya ya WhatsApp ne reject kiya. Naya code generate karein.'));
+          pendingPairings.delete(number);
+        }
+        logger.warn(`[Pairing] ${number} never opened (code ${code}) — session purged, NO reconnect`);
+        return;
+      }
+
+      // Normal Reconnect / Logout Logic
+      if (code === DisconnectReason.loggedOut) {
         await deleteSession(number);
         await removeUser(number);
         logger.warn(`🗑️ Logged out & purged: ${number}`);
@@ -211,12 +222,17 @@ export async function startBotForUser(number) {
 // ═══════════════════════════════════════════════════════════════════
 // 🔐 CREATE PAIRING CODE
 // ═══════════════════════════════════════════════════════════════════
-export function createPairingCode(number) {
+export async function createPairingCode(number) {
+  // 🚀 Fresh start: purana adhoora session pehle delete karo
+  if (!activeSessions.has(number)) {
+    await deleteSession(number);
+  }
+
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       pendingPairings.delete(number);
-      reject(new Error('Pairing timeout — QR event not received in 20s.'));
-    }, 20000);
+      reject(new Error('Pairing timeout — QR event nahi mila.'));
+    }, 25000);
 
     pendingPairings.set(number, {
       resolve: (c) => { clearTimeout(timeout); resolve(c); },
@@ -263,10 +279,3 @@ export function getSessionList() {
   }
   return out;
 }
-
-
-
-
-
-
-
