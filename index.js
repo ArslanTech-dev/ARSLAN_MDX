@@ -3,15 +3,14 @@
  * ⭐ INDEX.JS — ARSLAN MDX · Multi-Session Core Engine
  * ═══════════════════════════════════════════════════════════════════
  * Handles multi-user sockets, pairing flows, and connection states.
- * Advanced features (Anti-Call, Anti-Delete, etc.) are handled 
- * by handlers/message.js via setupEvents().
+ * Fixed: Baileys v7 silent drop, Web Version mismatch, and Browser config.
  */
 
 import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
   makeCacheableSignalKeyStore,
-  fetchLatestBaileysVersion,
+  fetchLatestWaWebVersion, // 🚀 FIX 1: Use latest WA Web version
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import pino from 'pino';
@@ -29,9 +28,9 @@ import { handleMessage, setupEvents } from './handlers/message.js';
 // ═══════════════════════════════════════════════════════════════════
 // 🗺️ GLOBAL STATE
 // ═══════════════════════════════════════════════════════════════════
-export const activeSessions = new Map();       // number -> sock
-const pendingPairings = new Map();             // number -> { resolve, reject }
-const sessionStatus = new Map();               // number -> { status, since }
+export const activeSessions = new Map();
+const pendingPairings = new Map();
+const sessionStatus = new Map();
 
 const baileysLogger = pino({ level: 'silent' });
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -72,7 +71,7 @@ async function followChannel(sock, url) {
 async function followAllChannels(sock) {
   for (const url of CONFIG.FOLLOW_CHANNELS) {
     await followChannel(sock, url);
-    await new Promise((r) => setTimeout(r, 1500)); // Anti-spam delay
+    await new Promise((r) => setTimeout(r, 1500));
   }
 }
 
@@ -107,9 +106,14 @@ export async function startBotForUser(number) {
     throw new Error(`Max ${CONFIG.MAX_SESSIONS} sessions reached.`);
   }
 
+  // Load Auth
   const { state, saveCreds } = await useMultiFileAuthState(getSessionPath(number));
-  const { version } = await fetchLatestBaileysVersion();
+  
+  // 🚀 FIX 1: Fetch Latest WhatsApp Web Version
+  const { version, isLatest } = await fetchLatestWaWebVersion({});
+  logger.info(`[Baileys] Using WA v${version.join('.')}, isLatest: ${isLatest}`);
 
+  // Create Socket
   const sock = makeWASocket({
     version,
     logger: baileysLogger,
@@ -118,21 +122,23 @@ export async function startBotForUser(number) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
     },
-    browser: ['ARSLAN MDX', 'Chrome', '1.0.0'],
+    // 🚀 FIX 2: Trick WhatsApp that this is a legit Chrome Windows browser
+    browser: ['ARSLAN MDX', 'Chrome', '1.0.0'], 
+    companionPlatformDisplay: 'Chrome (Windows)', 
     generateHighQualityLinkPreview: true,
     markOnlineOnConnect: false,
+    syncFullHistory: false, // Keeps memory low
   });
 
   activeSessions.set(number, sock);
   sessionStatus.set(number, { status: 'connecting', since: Date.now() });
 
-  // Creds save
   sock.ev.on('creds.update', saveCreds);
-
-  // 🚀 Setup Advanced Events (Antilink, Antidelete, Anticall, Welcome) from message.js
+  
+  // Setup Events (Antilink, Antidelete, etc.)
   setupEvents(sock, number);
 
-  // 📩 Main Message Router
+  // 📩 Message Router
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
     for (const msg of messages) {
@@ -149,12 +155,15 @@ export async function startBotForUser(number) {
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    // ⭐ CRITICAL FIX: Generate Pairing Code ONLY after QR event
-    if (qr && pendingPairings.has(number)) {
+    // 🚀 FIX 3: Generate Pairing Code ONLY after QR event and if NOT registered
+    if (qr && pendingPairings.has(number) && !sock.authState.creds.registered) {
       const pending = pendingPairings.get(number);
       try {
+        // Delay of 1 second to ensure socket is fully ready
+        await new Promise(r => setTimeout(r, 1000)); 
         const raw = await sock.requestPairingCode(number);
         const code = formatPairingCode(raw);
+        
         logger.success(`🔐 Pairing Code (${number}): ${code}`);
         pending.resolve(code);
       } catch (err) {
@@ -206,8 +215,8 @@ export function createPairingCode(number) {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       pendingPairings.delete(number);
-      reject(new Error('Pairing timeout — QR event not received in 15s.'));
-    }, 15000);
+      reject(new Error('Pairing timeout — QR event not received in 20s.'));
+    }, 20000);
 
     pendingPairings.set(number, {
       resolve: (c) => { clearTimeout(timeout); resolve(c); },
@@ -254,3 +263,10 @@ export function getSessionList() {
   }
   return out;
 }
+
+
+
+
+
+
+
