@@ -1,0 +1,15 @@
+# Backend Files (Ignore on Vercel)
+node_modules
+utils/
+handlers/
+plugins/
+index.js
+server.js
+pair.js
+package.json
+package-lock.json
+config.js
+.env
+sessions/
+database/
+*.log
