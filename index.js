@@ -2,23 +2,22 @@
  * ═══════════════════════════════════════════════════════════════════
  * ⭐ INDEX.JS — ARSLAN MDX · Multi-Session Core Engine
  * ═══════════════════════════════════════════════════════════════════
- * Optimized for @animebails/baileys fork.
- * Fixed: Named imports for makeWASocket, stable pairing, and reconnect.
+ * Optimized for stable pairing & advanced terminal UI.
  */
 
+import makeWASocket from '@whiskeysockets/baileys';
 import {
-  makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
   makeCacheableSignalKeyStore,
-  fetchLatestWaWebVersion,
-  Browsers // ✅ Required for stable pairing
+  fetchLatestWaWebVersion
 } from '@whiskeysockets/baileys';
 
 import { Boom } from '@hapi/boom';
 import pino from 'pino';
 import fs from 'fs-extra';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 
 import { CONFIG } from './config.js';
@@ -28,9 +27,6 @@ import logger from './utils/logger.js';
 import { formatPairingCode } from './pair.js';
 import { handleMessage, setupEvents } from './handlers/message.js';
 
-// ═══════════════════════════════════════════════════════════════════
-// 🗺️ GLOBAL STATE
-// ═══════════════════════════════════════════════════════════════════
 export const activeSessions = new Map();
 const pendingPairings = new Map();
 const sessionStatus = new Map();
@@ -40,9 +36,51 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WELCOME_IMAGE_PATH = path.join(__dirname, 'assets', 'welcome.png');
 
 // ═══════════════════════════════════════════════════════════════════
+// 🎨 ULTRA-ADVANCED TERMINAL BANNER
+// ═══════════════════════════════════════════════════════════════════
+function displayBanner() {
+  const c = {
+    cyan: '\x1b[36m',
+    purple: '\x1b[35m',
+    green: '\x1b[32m',
+    yellow: '\x1b[33m',
+    red: '\x1b[31m',
+    reset: '\x1b[0m',
+    bold: '\x1b[1m'
+  };
+
+  const banner = `
+${c.purple}${c.bold}  █████╗ ██████╗ ███████╗██╗      █████╗ ███╗   ██╗${c.reset}
+${c.purple}${c.bold} ██╔══██╗██╔══██╗██╔════╝██║     ██╔══██╗████╗  ██║${c.reset}
+${c.cyan}${c.bold} ███████║██████╔╝███████╗██║     ███████║██╔██╗ ██║${c.reset}
+${c.cyan}${c.bold} ██╔══██║██╔══██╗╚════██║██║     ██╔══██║██║╚██╗██║${c.reset}
+${c.green}${c.bold} ██║  ██║██║  ██║███████║███████╗██║  ██║██║ ╚████║${c.reset}
+${c.green}${c.bold} ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝${c.reset}
+${c.cyan}${c.bold}           ███╗   ███╗██████╗ ██╗  ██╗${c.reset}
+${c.cyan}${c.bold}           ████╗ ████║██╔══██╗╚██╗██╔╝${c.reset}
+${c.purple}${c.bold}           ██╔████╔██║██║  ██║ ╚███╔╝ ${c.reset}
+${c.purple}${c.bold}           ██║╚██╔╝██║██║  ██║ ██╔██╗ ${c.reset}
+${c.cyan}${c.bold}           ██║ ╚═╝ ██║██████╔╝██╔╝ ██╗${c.reset}
+${c.cyan}${c.bold}           ╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝${c.reset}
+
+${c.yellow} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ${c.reset}
+${c.green}  ⚡ ENGINE    :${c.reset} Baileys (Fork)
+${c.green}  ⚡ NODE.JS   :${c.reset} ${process.version}
+${c.green}  ⚡ PLATFORM  :${c.reset} ${os.platform()} ${os.arch()}
+${c.green}  ⚡ MEMORY    :${c.reset} ${Math.round(os.totalmem() / 1024 / 1024 / 1024)} GB Total
+${c.green}  ⚡ STATUS    :${c.reset} ${c.cyan}ONLINE & OPERATIONAL${c.reset}
+${c.yellow} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ${c.reset}
+${c.red}  💖 DEDICATION: For Brown Hair Wali (My Everything)${c.reset}
+${c.yellow} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ${c.reset}
+  `;
+  console.log(banner);
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // 🚀 INIT
 // ═══════════════════════════════════════════════════════════════════
 export async function initSessionManager() {
+  displayBanner(); // 👈 Print banner on startup
   await ensureSessionRoot();
   logger.success(`💖 ARSLAN MDX Engine Initialized`);
 }
@@ -50,16 +88,10 @@ export async function initSessionManager() {
 // ═══════════════════════════════════════════════════════════════════
 // 📰 CHANNEL AUTO-FOLLOW
 // ═══════════════════════════════════════════════════════════════════
-function extractInviteCode(url) {
-  const m = String(url).match(/\/channel\/([A-Za-z0-9]+)/);
-  return m ? m[1] : null;
-}
-
 async function followChannel(sock, url) {
-  const code = extractInviteCode(url);
-  if (!code) return false;
-
   try {
+    const code = String(url).match(/\/channel\/([A-Za-z0-9]+)/)?.[1];
+    if (!code) return false;
     const meta = await sock.newsletterMetadata('invite', code);
     if (!meta?.id) return false;
     await sock.newsletterFollow(meta.id);
@@ -83,7 +115,6 @@ async function followAllChannels(sock) {
 // ═══════════════════════════════════════════════════════════════════
 async function sendWelcomeMessage(sock, number) {
   const selfJid = `${number}@s.whatsapp.net`;
-
   try {
     if (await fs.pathExists(WELCOME_IMAGE_PATH)) {
       await sock.sendMessage(selfJid, {
@@ -110,9 +141,8 @@ export async function startBotForUser(number) {
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(getSessionPath(number));
-  const { version, isLatest } = await fetchLatestWaWebVersion({});
-  logger.info(`[Baileys] Using WA v${version.join('.')}, isLatest: ${isLatest}`);
-
+  const { version } = await fetchLatestWaWebVersion();
+  
   const sock = makeWASocket({
     version,
     logger: baileysLogger,
@@ -121,8 +151,8 @@ export async function startBotForUser(number) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
     },
-    // 🚀 Stable Browser Config for Pairing
-    browser: Browsers.macOS('Chrome'), 
+    // 🚀 STRONG PAIRING: Use MACOS platform (Accepted by WhatsApp)
+    browser: ['Mac OS', 'Chrome', '14.4.1'], 
     generateHighQualityLinkPreview: true,
     markOnlineOnConnect: false,
     syncFullHistory: false,
@@ -136,9 +166,8 @@ export async function startBotForUser(number) {
   sock.ev.on('creds.update', saveCreds);
   setupEvents(sock, number);
 
-  let hasOpenedOnce = false; // 🚀 Prevent infinite reconnect loop on failed pairing
+  let hasOpenedOnce = false;
 
-  // 📩 Message Router
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
     for (const msg of messages) {
@@ -151,18 +180,17 @@ export async function startBotForUser(number) {
     }
   });
 
-  // 🔄 Connection Updates
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    // 1. Pairing Code Logic (Wait for QR event)
+    // 🚀 STRONG PAIRING: Wait for QR event before requesting code
     if (qr && pendingPairings.has(number) && !sock.authState.creds.registered) {
       const pending = pendingPairings.get(number);
       try {
-        await new Promise(r => setTimeout(r, 1500)); // Wait for socket stabilization
+        // Wait for socket stabilization
+        await new Promise(r => setTimeout(r, 2000));
         const raw = await sock.requestPairingCode(number);
         const code = formatPairingCode(raw);
-        
         logger.success(`🔐 Pairing Code (${number}): ${code}`);
         pending.resolve(code);
       } catch (err) {
@@ -173,38 +201,52 @@ export async function startBotForUser(number) {
       }
     }
 
-    // 2. Connected
     if (connection === 'open') {
       hasOpenedOnce = true;
       logger.success(`✅ Session OPEN: ${number}`);
       sessionStatus.set(number, { status: 'connected', since: Date.now() });
-      
       await setUser(number, { number, jid: sock.user?.id, name: sock.user?.name || '', status: 'connected' });
-      
       await sendWelcomeMessage(sock, number);
       await followAllChannels(sock);
     }
 
-    // 3. Disconnected
     if (connection === 'close') {
       const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
       
       activeSessions.delete(number);
       sessionStatus.delete(number);
 
-      // 🚀 CRITICAL FIX: If pairing failed and never opened, do NOT reconnect
+      // 🚀 515: Pairing accepted, need to reconnect
+      if (code === 515) {
+        logger.info(`🔄 Pairing accepted for ${number}. Reconnecting...`);
+        setTimeout(() => {
+          startBotForUser(number).catch((e) => logger.error(`Reconnect failed (${number}):`, e.message));
+        }, 3000);
+        return;
+      }
+
+      // 🚀 405: Method Not Allowed (Platform rejection) - Retry with backoff
+      if (code === 405) {
+        logger.warn(`⚠️ 405 Method Not Allowed for ${number}. Retrying with MACOS platform...`);
+        setTimeout(() => {
+          startBotForUser(number).catch((e) => logger.error(`Retry failed (${number}):`, e.message));
+        }, 5000);
+        return;
+      }
+
+      // If never opened (pairing failed)
       if (!hasOpenedOnce) {
         await deleteSession(number);
         const pending = pendingPairings.get(number);
         if (pending) {
-          pending.reject(new Error('Pairing failed — code expired or rejected by WhatsApp. Generate a new code.'));
+          pending.reject(new Error('Pairing failed. Generate a new code.'));
           pendingPairings.delete(number);
         }
-        logger.warn(`[Pairing] ${number} never opened (code ${code}) — session purged, NO reconnect`);
+        logger.warn(`[Pairing] ${number} never opened (code ${code}) — session purged`);
         return;
       }
 
-      // Normal Reconnect / Logout Logic
+      // Normal disconnect
       if (code === DisconnectReason.loggedOut) {
         await deleteSession(number);
         await removeUser(number);
@@ -221,19 +263,16 @@ export async function startBotForUser(number) {
   return sock;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🔐 CREATE PAIRING CODE
-// ═══════════════════════════════════════════════════════════════════
 export async function createPairingCode(number) {
   if (!activeSessions.has(number)) {
-    await deleteSession(number); // Clean slate before pairing
+    await deleteSession(number);
   }
 
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       pendingPairings.delete(number);
       reject(new Error('Pairing timeout — QR event not received.'));
-    }, 25000);
+    }, 30000);
 
     pendingPairings.set(number, {
       resolve: (c) => { clearTimeout(timeout); resolve(c); },
@@ -248,9 +287,6 @@ export async function createPairingCode(number) {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🗑️ UNPAIR
-// ═══════════════════════════════════════════════════════════════════
 export async function unpairUser(number) {
   const sock = activeSessions.get(number);
   try {
@@ -269,9 +305,6 @@ export async function unpairUser(number) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 📊 GET SESSION LIST
-// ═══════════════════════════════════════════════════════════════════
 export function getSessionList() {
   const out = [];
   for (const [number, sock] of activeSessions.entries()) {
