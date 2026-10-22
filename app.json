@@ -1,0 +1,43 @@
+{
+  "name": "Arslan MDX",
+  "description": "Premium Multi-User WhatsApp Bot",
+  "repository": "https://github.com/ArslanTech-dev/ARSLAN_MDX",
+  "logo": "https://raw.githubusercontent.com/ArslanTech-dev/ARSLAN_MDX/main/assets/logo.png",
+  "keywords": ["node", "whatsapp", "bot", "baileys"],
+  "env": {
+    "PORT": {
+      "description": "Server Port",
+      "value": "3000",
+      "required": false
+    },
+    "DATA_DIR": {
+      "description": "Data directory for sessions (Cloud safe)",
+      "value": "/tmp",
+      "required": false
+    },
+    "OWNER_NUMBER": {
+      "description": "Your WhatsApp Number without '+' (e.g. 923001234567)",
+      "value": "923046490245",
+      "required": true
+    },
+    "PREFIX": {
+      "description": "Command Prefix",
+      "value": ".",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "buildpacks": [
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-nodejs"
+    }
+  ]
+}
