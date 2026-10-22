@@ -1,12 +1,15 @@
 {
   "version": 2,
   "name": "arslan-mdx-frontend",
-  "public": true,
+  "framework": null,
+  "outputDirectory": "public",
+  "installCommand": "echo \"Skipping install\"",
+  "buildCommand": "echo \"Skipping build\"",
   "cleanUrls": true,
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/public/$1"
+      "destination": "/$1"
     }
   ]
 }
