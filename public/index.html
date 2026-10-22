@@ -2,7 +2,7 @@
 <html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <title>ARSLAN MDX • Terminal Control</title>
   <meta name="theme-color" content="#030712">
   
@@ -30,85 +30,96 @@
       --green: #22c55e;
       --red: #ef4444;
       --yellow: #eab308;
+      --pink: #ec4899;
       
       --font-ui: 'Plus Jakarta Sans', sans-serif;
       --font-mono: 'JetBrains Mono', monospace;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    
     body {
       font-family: var(--font-ui); background-color: var(--bg); color: var(--text);
-      height: 100vh; display: flex; overflow: hidden;
+      min-height: 100vh; display: flex; overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
     }
 
     /* ═══════════════════════════════════════════════════════════
-       🚀 1. PRELOADER (Old BIOS Boot Style - Strictly Kept)
+       🚀 1. PRELOADER (BIOS Boot)
        ═══════════════════════════════════════════════════════════ */
     #boot-screen {
       position: fixed; inset: 0; z-index: 999999;
       background: #000; color: var(--green);
-      font-family: var(--font-mono); font-size: 13px; line-height: 1.5;
-      padding: 30px; display: flex; flex-direction: column;
+      font-family: var(--font-mono); font-size: 12px; line-height: 1.5;
+      padding: 15px; display: flex; flex-direction: column;
       justify-content: flex-end; overflow: hidden; transition: opacity 0.6s ease;
     }
     .boot-header {
-      position: absolute; top: 20px; left: 30px; right: 30px;
+      position: absolute; top: 15px; left: 15px; right: 15px;
       display: flex; justify-content: space-between;
-      color: #475569; border-bottom: 1px solid #1e293b; padding-bottom: 10px;
+      color: #475569; border-bottom: 1px solid #1e293b; padding-bottom: 8px;
+      font-size: 11px;
     }
-    #boot-logs { max-height: 80vh; overflow-y: hidden; }
-    .boot-log { margin-bottom: 6px; opacity: 0; transform: translateY(5px); animation: fadeInLog 0.2s forwards; }
-    .boot-log .b-time { color: #475569; margin-right: 10px; }
+    #boot-logs { max-height: 75vh; overflow-y: hidden; }
+    .boot-log { margin-bottom: 4px; opacity: 0; transform: translateY(5px); animation: fadeInLog 0.2s forwards; word-wrap: break-word; }
+    .boot-log .b-time { color: #475569; margin-right: 5px; }
     .boot-log .b-ok { color: var(--green); font-weight: bold; }
     .boot-log .b-info { color: var(--cyan); font-weight: bold; }
     @keyframes fadeInLog { to { opacity: 1; transform: translateY(0); } }
     
-    .boot-cursor { width: 8px; height: 14px; background: var(--green); animation: blink 1s step-end infinite; display: inline-block; margin-left: 5px; }
+    .boot-cursor { width: 7px; height: 12px; background: var(--green); animation: blink 1s step-end infinite; display: inline-block; margin-left: 3px; vertical-align: middle; }
     @keyframes blink { 50% { opacity: 0; } }
 
     .boot-progress { position: absolute; bottom: 0; left: 0; height: 2px; background: var(--green); width: 0%; transition: width 0.2s; box-shadow: 0 0 15px var(--green); }
 
     /* ═══════════════════════════════════════════════════════════
-       📐 LAYOUT (Sidebar + Main)
+       📐 LAYOUT (Mobile First)
        ═══════════════════════════════════════════════════════════ */
     .sidebar {
-      width: 260px; background: var(--bg-alt); border-right: 1px solid rgba(255,255,255,0.05);
-      display: flex; flex-direction: column; z-index: 100; flex-shrink: 0;
+      position: fixed; top: 0; left: -280px; width: 260px; height: 100vh;
+      background: var(--bg-alt); border-right: 1px solid rgba(255,255,255,0.05);
+      display: flex; flex-direction: column; z-index: 1000; transition: left 0.3s ease;
     }
-    .brand { padding: 25px 20px; display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .brand-logo { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--purple), var(--cyan)); display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; }
+    .sidebar.open { left: 0; box-shadow: 5px 0 30px rgba(0,0,0,0.8); }
     
-    .nav-menu { padding: 20px 10px; flex: 1; display: flex; flex-direction: column; gap: 5px; }
+    .sidebar-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; 
+      display: none; backdrop-filter: blur(2px);
+    }
+    .sidebar-overlay.show { display: block; }
+
+    .brand { padding: 20px; display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .brand-logo { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--purple), var(--cyan)); display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; }
+    
+    .nav-menu { padding: 15px 10px; flex: 1; display: flex; flex-direction: column; gap: 5px; }
     .nav-item {
       display: flex; align-items: center; gap: 12px; padding: 12px 15px;
       color: var(--muted); font-size: 14px; font-weight: 600; border-radius: 8px;
       cursor: pointer; transition: 0.2s; border: none; background: transparent; width: 100%; text-align: left;
     }
-    .nav-item:hover { color: white; background: rgba(255,255,255,0.03); }
-    .nav-item.active { color: white; background: rgba(139, 92, 246, 0.15); border-left: 3px solid var(--purple); }
+    .nav-item:hover, .nav-item.active { color: white; background: rgba(139, 92, 246, 0.15); }
     .nav-item i { width: 20px; text-align: center; }
     
-    .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 11px; color: var(--muted); text-align: center; }
+    .sidebar-footer { padding: 15px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 11px; color: var(--muted); text-align: center; }
 
     /* Main Content */
-    .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    .main-content { flex: 1; display: flex; flex-direction: column; width: 100%; position: relative; }
     
     /* Topbar */
     .topbar {
-      height: 70px; border-bottom: 1px solid rgba(255,255,255,0.05);
+      height: 60px; border-bottom: 1px solid rgba(255,255,255,0.05);
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0 30px; background: var(--bg);
+      padding: 0 15px; background: var(--bg); position: sticky; top: 0; z-index: 100;
     }
-    .live-ticker { display: flex; align-items: center; gap: 15px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); background: rgba(0,0,0,0.3); padding: 8px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
-    .t-val { color: var(--green); font-weight: bold; }
-    .t-val.red { color: var(--red); }
-    .t-val.cyan { color: var(--cyan); }
-
-    .sys-status { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--green); background: rgba(34, 197, 94, 0.1); padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(34, 197, 94, 0.2); }
-    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
+    .menu-btn { background: transparent; border: none; color: var(--text); font-size: 20px; padding: 5px; cursor: pointer; }
+    
+    .live-ticker { display: none; /* Mobile pe hide */ }
+    
+    .sys-status { display: flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 10px; color: var(--green); background: rgba(34, 197, 94, 0.1); padding: 4px 8px; border-radius: 20px; border: 1px solid rgba(34, 197, 94, 0.2); }
+    .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
 
     /* Scrollable Area */
-    .content-area { flex: 1; overflow-y: auto; padding: 30px; background-image: radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.03) 0%, transparent 50%); }
+    .content-area { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 80px; background-image: radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.03) 0%, transparent 50%); }
     .tab-page { display: none; animation: fadeIn 0.3s ease; }
     .tab-page.active { display: block; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -116,85 +127,122 @@
     /* ═══════════════════════════════════════════════════════════
        🧩 COMPONENTS
        ═══════════════════════════════════════════════════════════ */
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 30px; }
-    @media (max-width: 1000px) { .grid-2 { grid-template-columns: 1fr; } }
+    .grid-2 { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
     
-    .panel { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px); }
-    .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); }
-    .panel-title { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--cyan); display: flex; align-items: center; gap: 8px; }
-    .panel-body { padding: 25px; }
+    .panel { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px); }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); }
+    .panel-title { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--cyan); display: flex; align-items: center; gap: 6px; }
+    .panel-body { padding: 15px; }
 
     /* Forms */
-    .form-group { margin-bottom: 20px; }
-    .form-group label { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; }
-    .form-control { width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-family: var(--font-ui); font-size: 15px; outline: none; transition: 0.3s; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-family: var(--font-mono); font-size: 10px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; }
+    .form-control { width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; font-family: var(--font-ui); font-size: 14px; outline: none; transition: 0.3s; }
     .form-control:focus { border-color: var(--purple); box-shadow: 0 0 15px rgba(139, 92, 246, 0.2); }
     select.form-control { font-family: var(--font-mono); cursor: pointer; }
 
-    .btn-primary { width: 100%; padding: 16px; background: linear-gradient(135deg, var(--purple), #6d28d9); color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; transition: 0.3s; }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(139, 92, 246, 0.5); }
+    .btn-primary { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--purple), #6d28d9); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.3s; }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary:disabled { opacity: 0.6; }
 
     /* Code Result */
-    .code-box { display: none; margin-top: 20px; padding: 25px; background: rgba(6, 182, 212, 0.05); border: 1px solid var(--cyan); border-radius: 10px; text-align: center; }
+    .code-box { display: none; margin-top: 15px; padding: 15px; background: rgba(6, 182, 212, 0.05); border: 1px solid var(--cyan); border-radius: 8px; text-align: center; }
     .code-box.show { display: block; animation: fadeIn 0.4s; }
-    .code-val { font-family: var(--font-mono); font-size: 36px; font-weight: 700; color: var(--cyan); letter-spacing: 8px; text-shadow: 0 0 20px rgba(6, 182, 212, 0.5); }
+    .code-val { font-family: var(--font-mono); font-size: 28px; font-weight: 700; color: var(--cyan); letter-spacing: 4px; text-shadow: 0 0 15px rgba(6, 182, 212, 0.4); }
 
     /* ═══════════════════════════════════════════════════════════
-       💻 NEW ADVANCED TERMINAL
+       💻 ADVANCED TERMINAL
        ═══════════════════════════════════════════════════════════ */
     .terminal-container {
-      background: #050505; border-radius: 10px; border: 1px solid #1e293b;
-      height: 350px; display: flex; flex-direction: column; overflow: hidden;
-      box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+      background: #050505; border-radius: 8px; border: 1px solid #1e293b;
+      height: 260px; display: flex; flex-direction: column; overflow: hidden;
     }
-    .term-header {
-      background: #0f172a; padding: 8px 15px; display: flex; align-items: center; gap: 8px;
-      border-bottom: 1px solid #1e293b;
-    }
-    .term-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .term-header { background: #0f172a; padding: 6px 10px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #1e293b; }
+    .term-dot { width: 8px; height: 8px; border-radius: 50%; }
     .term-dot.red { background: #ff5f56; }
     .term-dot.yellow { background: #ffbd2e; }
     .term-dot.green { background: #27c93f; }
-    .term-title { font-family: var(--font-mono); font-size: 11px; color: #64748b; margin-left: auto; margin-right: auto; }
+    .term-title { font-family: var(--font-mono); font-size: 10px; color: #64748b; margin-left: auto; margin-right: auto; }
 
-    .term-body {
-      padding: 15px; overflow-y: auto; flex: 1; font-family: var(--font-mono); font-size: 13px;
-      display: flex; flex-direction: column; gap: 6px;
-    }
-    .term-line { display: flex; gap: 10px; line-height: 1.4; }
+    .term-body { padding: 10px; overflow-y: auto; flex: 1; font-family: var(--font-mono); font-size: 11px; display: flex; flex-direction: column; gap: 4px; }
+    .term-line { display: flex; gap: 6px; line-height: 1.3; flex-wrap: wrap; }
     .t-time { color: #475569; flex-shrink: 0; }
     .t-ok { color: var(--green); font-weight: bold; }
     .t-err { color: var(--red); font-weight: bold; }
     .t-info { color: var(--cyan); font-weight: bold; }
-    .t-txt { color: #cbd5e1; }
+    .t-warn { color: var(--yellow); font-weight: bold; }
+    .t-saba { color: var(--pink); font-weight: bold; }
+    .t-txt { color: #cbd5e1; word-break: break-word; }
 
-    .term-input-line { display: flex; gap: 10px; padding: 10px 15px; border-top: 1px solid #1e293b; background: #000; align-items: center; }
-    .term-prompt { color: var(--green); font-weight: bold; font-family: var(--font-mono); font-size: 13px; }
-    .term-input { background: transparent; border: none; color: white; font-family: var(--font-mono); font-size: 13px; outline: none; flex: 1; }
-    .term-cursor { width: 8px; height: 15px; background: var(--green); animation: blink 1s step-end infinite; }
+    .term-input-line { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid #1e293b; background: #000; align-items: center; }
+    .term-prompt { color: var(--green); font-weight: bold; font-family: var(--font-mono); font-size: 11px; }
+    .term-input { background: transparent; border: none; color: white; font-family: var(--font-mono); font-size: 12px; outline: none; flex: 1; }
+    .term-cursor { width: 6px; height: 12px; background: var(--green); animation: blink 1s step-end infinite; }
 
     /* Sessions */
-    .session-item { display: flex; justify-content: space-between; align-items: center; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 15px 20px; margin-bottom: 10px; }
-    .avatar { width: 45px; height: 45px; border-radius: 10px; background: rgba(139, 92, 246, 0.2); border: 1px solid var(--purple); display: flex; align-items: center; justify-content: center; color: var(--purple); font-weight: 800; font-family: var(--font-mono); }
-    .btn-unpair { background: transparent; color: var(--red); border: 1px solid rgba(239, 68, 68, 0.3); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
-    .btn-unpair:hover { background: rgba(239, 68, 68, 0.1); }
+    .session-item { display: flex; flex-direction: column; gap: 10px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+    .session-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+    .session-info-mob { display: flex; align-items: center; gap: 10px; }
+    .avatar { width: 36px; height: 36px; border-radius: 8px; background: rgba(139, 92, 246, 0.2); border: 1px solid var(--purple); display: flex; align-items: center; justify-content: center; color: var(--purple); font-weight: 800; font-family: var(--font-mono); font-size: 12px; }
+    .btn-unpair { width: 100%; background: transparent; color: var(--red); border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-unpair:active { background: rgba(239, 68, 68, 0.1); }
+
+    /* Network Grid */
+    .servers-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .server-card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 8px; padding: 10px; }
+    .s-name { font-family: var(--font-mono); font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+    .s-status { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-block; }
+    .s-on { background: rgba(34,197,94,0.1); color: var(--green); }
+
+    /* ═══════════════════════════════════════════════════════════
+       📱 BOTTOM NAVIGATION
+       ═══════════════════════════════════════════════════════════ */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 60px;
+      background: var(--bg-alt); border-top: 1px solid rgba(255,255,255,0.05);
+      display: flex; justify-content: space-around; align-items: center;
+      z-index: 100; padding-bottom: env(safe-area-inset-bottom);
+    }
+    .bn-item {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      color: var(--muted); font-size: 9px; font-weight: 600; text-transform: uppercase;
+      background: transparent; border: none; cursor: pointer; padding: 5px;
+    }
+    .bn-item i { font-size: 18px; }
+    .bn-item.active { color: var(--purple); }
+    .bn-item.active i { text-shadow: 0 0 10px rgba(139, 92, 246, 0.5); }
 
     /* Matrix Canvas */
     #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.1; pointer-events: none; }
 
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-    /* Custom Scrollbar for Terminal */
-    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: #000; }
-    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+
+    /* Desktop Upgrades */
+    @media (min-width: 768px) {
+      .sidebar { position: sticky; left: 0; }
+      .bottom-nav { display: none; }
+      .menu-btn { display: none; }
+      .main-content { height: 100vh; overflow: hidden; }
+      .content-area { padding: 30px; padding-bottom: 30px; }
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+      .live-ticker { display: flex; align-items: center; gap: 15px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); background: rgba(0,0,0,0.3); padding: 8px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
+      .terminal-container { height: 350px; }
+      .session-item { flex-direction: row; justify-content: space-between; align-items: center; }
+      .session-header { width: auto; }
+      .btn-unpair { width: auto; padding: 6px 12px; }
+      .servers-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+    }
   </style>
 </head>
 <body>
 
-  <!-- Canvas for Matrix Rain Background -->
   <canvas id="bg-canvas"></canvas>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- 🚀 INITIALIZATION PRELOADER -->
+  <!-- INITIALIZATION PRELOADER -->
   <div id="boot-screen">
     <div class="boot-header">
       <span>ARSLAN MDX BIOS v4.2.0</span>
@@ -206,7 +254,7 @@
   </div>
 
   <!-- SIDEBAR -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="brand">
       <div class="brand-logo"><i class="fa-solid fa-cube"></i></div>
       ARSLAN MDX
@@ -224,17 +272,14 @@
 
   <!-- MAIN CONTENT -->
   <main class="main-content">
-    
-    <!-- Topbar -->
     <header class="topbar">
+      <button class="menu-btn" id="menuBtn"><i class="fa-solid fa-bars"></i></button>
       <div class="live-ticker">
         <span>CPU <span class="t-val" id="t-cpu">0%</span></span> |
         <span>MEM <span class="t-val cyan" id="t-mem">0MB</span></span> |
         <span>PING <span class="t-val red" id="t-ping">0ms</span></span>
       </div>
-      <div class="sys-status">
-        <span class="dot"></span> SYSTEM ONLINE
-      </div>
+      <div class="sys-status"><span class="dot"></span> ONLINE</div>
     </header>
 
     <div class="content-area">
@@ -250,18 +295,18 @@
             </div>
             <div class="panel-body">
               <div class="form-group">
-                <label>Select Target Node</label>
+                <label>Select Target Server</label>
                 <select id="serverSelect" class="form-control"></select>
               </div>
               <div class="form-group">
                 <label>WhatsApp Number</label>
-                <input type="tel" id="numberInput" class="form-control" placeholder="e.g. 923001234567">
+                <input type="tel" id="numberInput" class="form-control" placeholder="e.g. 923001234567" inputmode="numeric">
               </div>
               <button id="generateBtn" class="btn-primary"><i class="fa-solid fa-bolt"></i> Execute Pairing</button>
               
               <div class="code-box" id="pairResult">
                 <div class="code-val" id="pairCode">────-────</div>
-                <div style="font-size: 12px; color: var(--muted); margin-top: 10px;">Enter in Linked Devices</div>
+                <div style="font-size: 11px; color: var(--muted); margin-top: 8px;">Enter in Linked Devices</div>
               </div>
             </div>
           </div>
@@ -271,8 +316,7 @@
             <div class="panel-header">
               <div class="panel-title"><i class="fa-solid fa-code"></i> LIVE TERMINAL</div>
             </div>
-            <div class="panel-body" style="padding: 15px;">
-              
+            <div class="panel-body" style="padding: 10px;">
               <div class="terminal-container">
                 <div class="term-header">
                   <div class="term-dot red"></div>
@@ -282,55 +326,61 @@
                 </div>
                 <div class="term-body" id="terminalOutput">
                   <div class="term-line"><span class="t-time">00:00:00</span><span class="t-ok">[OK]</span><span class="t-txt">Terminal initialized.</span></div>
-                  <div class="term-line"><span class="t-time">00:00:01</span><span class="t-info">[INFO]</span><span class="t-txt">Type 'help' to see available commands.</span></div>
+                  <div class="term-line"><span class="t-time">00:00:01</span><span class="t-info">[INFO]</span><span class="t-txt">Type 'help' for commands.</span></div>
                 </div>
                 <div class="term-input-line">
                   <span class="term-prompt">root@mdx:~#</span>
-                  <input type="text" class="term-input" id="termInput" autocomplete="off" autofocus>
+                  <input type="text" class="term-input" id="termInput" autocomplete="off" autocapitalize="off" spellcheck="false">
                   <div class="term-cursor"></div>
                 </div>
               </div>
-
             </div>
           </div>
 
         </div>
 
         <!-- Active Sessions -->
-        <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 15px;">Active Connections</h2>
+        <h2 style="font-size: 16px; font-weight: 800; margin-bottom: 12px;">Active Connections</h2>
         <div id="sessionList">
-          <div class="panel" style="padding: 20px; text-align: center; color: var(--muted); font-size: 14px;">No active sessions detected.</div>
+          <div class="panel" style="padding: 15px; text-align: center; color: var(--muted); font-size: 13px;">No active sessions detected.</div>
         </div>
       </div>
 
       <!-- TAB 2: NETWORK -->
       <div class="tab-page" id="page-network">
-        <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 5px;">Global Network</h1>
-        <p style="color: var(--muted); margin-bottom: 30px; font-size: 14px;">100 Edge Nodes Active.</p>
-        <div class="servers-grid" id="serversGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+        <h1 style="font-size: 20px; font-weight: 800; margin-bottom: 5px;">Global Network</h1>
+        <p style="color: var(--muted); margin-bottom: 20px; font-size: 13px;">60 Servers Active.</p>
+        <div class="servers-grid" id="serversGrid">
           <!-- JS Populates -->
         </div>
       </div>
 
       <!-- TAB 3: ANALYTICS -->
       <div class="tab-page" id="page-analytics">
-        <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 5px;">System Analytics</h1>
-        <p style="color: var(--muted); margin-bottom: 30px; font-size: 14px;">Traffic and performance metrics.</p>
-        <div class="panel" style="padding: 40px; text-align: center;">
-          <i class="fa-solid fa-chart-pie" style="font-size: 48px; color: var(--purple); margin-bottom: 20px;"></i>
-          <h2 style="margin-bottom: 10px;">Analytics Engine</h2>
-          <p style="color: var(--muted);">Awaiting data...</p>
+        <h1 style="font-size: 20px; font-weight: 800; margin-bottom: 5px;">System Analytics</h1>
+        <p style="color: var(--muted); margin-bottom: 20px; font-size: 13px;">Traffic and performance metrics.</p>
+        <div class="panel" style="padding: 30px 15px; text-align: center;">
+          <i class="fa-solid fa-chart-pie" style="font-size: 36px; color: var(--purple); margin-bottom: 15px;"></i>
+          <h2 style="margin-bottom: 8px; font-size: 16px;">Analytics Engine</h2>
+          <p style="color: var(--muted); font-size: 13px;">Awaiting data...</p>
         </div>
       </div>
 
     </div>
   </main>
 
+  <!-- BOTTOM NAVIGATION -->
+  <nav class="bottom-nav">
+    <button class="bn-item active" data-tab="dashboard"><i class="fa-solid fa-terminal"></i> Terminal</button>
+    <button class="bn-item" data-tab="network"><i class="fa-solid fa-network-wired"></i> Network</button>
+    <button class="bn-item" data-tab="analytics"><i class="fa-solid fa-chart-simple"></i> Stats</button>
+  </nav>
+
   <script>
     const API_URL = (window.ARSLAN_API_URL || window.location.origin).replace(/\/$/, '');
 
     /* ═══════════════════════════════════════════════════════
-       1. MATRIX RAIN BACKGROUND
+       1. MATRIX RAIN
        ═══════════════════════════════════════════════════════ */
     const canvas = document.getElementById('bg-canvas');
     const ctx = canvas.getContext('2d');
@@ -352,7 +402,31 @@
     window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
 
     /* ═══════════════════════════════════════════════════════
-       2. INITIALIZATION PRELOADER (Strictly Old Style)
+       2. MOBILE SIDEBAR & TABS
+       ═══════════════════════════════════════════════════════ */
+    const menuBtn = document.getElementById('menuBtn');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+    menuBtn.addEventListener('click', () => { sidebar.classList.add('open'); sidebarOverlay.classList.add('show'); });
+    sidebarOverlay.addEventListener('click', () => { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('show'); });
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.nav-item[data-tab="${tabId}"]`)?.classList.add('active');
+      document.querySelectorAll('.bn-item').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.bn-item[data-tab="${tabId}"]`)?.classList.add('active');
+      document.querySelectorAll('.tab-page').forEach(c => c.classList.remove('active'));
+      document.getElementById(`page-${tabId}`)?.classList.add('active');
+      sidebar.classList.remove('open');
+      sidebarOverlay.classList.remove('show');
+    }
+    document.querySelectorAll('.nav-item, .bn-item').forEach(tab => {
+      tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    });
+
+    /* ═══════════════════════════════════════════════════════
+       3. BOOT SEQUENCE
        ═══════════════════════════════════════════════════════ */
     const bootLines = [
       "Initializing ARSLAN MDX Kernel...",
@@ -360,7 +434,7 @@
       "Mounting /tmp/sessions... [OK]",
       "Loading Baileys v7 protocol... [OK]",
       "Establishing secure WebSocket layer... [OK]",
-      "Spinning up 100 global edge nodes... [OK]",
+      "Spinning up 60 global servers... [OK]",
       "Fetching latest WhatsApp Web version... [OK]",
       "Starting Cron jobs... [OK]",
       "ARSLAN MDX Core is now ONLINE."
@@ -384,26 +458,14 @@
         bootProgress.style.width = `${(currentLine / bootLines.length) * 100}%`;
         setTimeout(typeBootLine, Math.random() * 150 + 100); 
       } else {
-        setTimeout(() => {
-          bootScreen.style.opacity = '0';
-          setTimeout(() => bootScreen.style.display = 'none', 600);
-        }, 1000);
+        setTimeout(() => { bootScreen.style.opacity = '0'; setTimeout(() => bootScreen.style.display = 'none', 600); }, 1000);
       }
     }
     setTimeout(typeBootLine, 500);
 
     /* ═══════════════════════════════════════════════════════
-       3. LIVE STATS & TABS
+       4. LIVE STATS
        ═══════════════════════════════════════════════════════ */
-    document.querySelectorAll('.nav-item').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-page').forEach(c => c.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById(`page-${tab.dataset.tab}`).classList.add('active');
-      });
-    });
-
     setInterval(() => {
       document.getElementById('t-cpu').textContent = Math.floor(Math.random() * 15 + 5) + '%';
       document.getElementById('t-mem').textContent = Math.floor(Math.random() * 100 + 350) + 'MB';
@@ -411,48 +473,53 @@
     }, 2000);
 
     /* ═══════════════════════════════════════════════════════
-       4. GENERATE NODES (100 Servers)
+       5. GENERATE 60 SERVERS
        ═══════════════════════════════════════════════════════ */
     const serverSelect = document.getElementById('serverSelect');
     const serversGrid = document.getElementById('serversGrid');
 
-    for (let i = 1; i <= 100; i++) {
-      const nodeId = String(i).padStart(3, '0');
-      const region = i <= 33 ? 'US' : i <= 66 ? 'EU' : 'ASIA';
+    for (let i = 1; i <= 60; i++) {
+      const serverName = `Server ${i}`;
+      const region = i <= 20 ? 'US' : i <= 40 ? 'EU' : 'ASIA';
       
+      // Dropdown
       const opt = document.createElement('option');
-      opt.value = nodeId;
-      opt.textContent = `Node-${nodeId} // ${region}`;
+      opt.value = serverName;
+      opt.textContent = `${serverName} // ${region}`;
       serverSelect.appendChild(opt);
 
+      // Grid
       const card = document.createElement('div');
-      card.className = 'session-item';
+      card.className = 'server-card';
       card.innerHTML = `
-        <div style="font-family: var(--font-mono); font-size: 12px; font-weight: 700;">NODE-${nodeId}</div>
-        <div style="font-size: 10px; color: var(--green);">ONLINE</div>
+        <div class="s-name">${serverName.toUpperCase()}</div>
+        <div class="s-status s-on">ONLINE</div>
       `;
       serversGrid.appendChild(card);
     }
 
     /* ═══════════════════════════════════════════════════════
-       5. INTERACTIVE TERMINAL ENGINE & ANIMATIONS
+       6. INTERACTIVE TERMINAL ENGINE & ANIMATIONS
        ═══════════════════════════════════════════════════════ */
     const termOutput = document.getElementById('terminalOutput');
     const termInput = document.getElementById('termInput');
 
-    // Function to add log with typing animation
     function addLog(type, msg, animate = false) {
       const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
-      const cls = type === 'OK' ? 't-ok' : type === 'ERR' ? 't-err' : 't-info';
+      let cls = 't-info';
+      if (type === 'OK') cls = 't-ok';
+      else if (type === 'ERR') cls = 't-err';
+      else if (type === 'WARN') cls = 't-warn';
+      else if (type === 'SABA') cls = 't-saba';
       
       const line = document.createElement('div');
       line.className = 'term-line';
-      line.innerHTML = `<span class="t-time">${time}</span><span class="${cls}">[${type}]</span><span class="t-txt" id="txt-${Date.now()}"></span>`;
+      line.innerHTML = `<span class="t-time">${time}</span><span class="${cls}">[${type}]</span><span class="t-txt"></span>`;
       termOutput.appendChild(line);
       termOutput.scrollTop = termOutput.scrollHeight;
 
+      const span = line.querySelector('.t-txt');
       if (animate) {
-        const span = line.querySelector('.t-txt');
         let i = 0;
         function typeWriter() {
           if (i < msg.length) {
@@ -464,18 +531,11 @@
         }
         typeWriter();
       } else {
-        line.querySelector('.t-txt').textContent = msg;
+        span.textContent = msg;
       }
     }
 
-    // Fake server ping function
-    async function fakePing() {
-      addLog('INFO', 'Pinging WhatsApp servers...', true);
-      await new Promise(r => setTimeout(r, 800));
-      addLog('OK', 'Ping successful. Latency: 45ms.', true);
-    }
-
-    // Terminal Command Processor
+    // Command Handler
     termInput.addEventListener('keydown', async (e) => {
       if (e.key === 'Enter') {
         const val = termInput.value.trim().toLowerCase();
@@ -483,26 +543,65 @@
         if (!val) return;
         
         addLog('INFO', `root@mdx:~# ${val}`, false);
-        termOutput.scrollTop = termOutput.scrollHeight;
 
-        if (val === 'help') {
-          addLog('OK', 'Available commands: status, ping, clear, nodes', true);
-        } else if (val === 'clear') {
-          termOutput.innerHTML = '';
-        } else if (val === 'status') {
-          addLog('OK', 'All systems operational. 100 nodes online.', true);
-        } else if (val === 'ping') {
-          await fakePing();
-        } else if (val === 'nodes') {
-          addLog('INFO', 'Node 001 (US): ONLINE | Node 002 (EU): ONLINE...', true);
-        } else {
-          addLog('ERR', `Command not found: ${val}`, true);
+        switch (val) {
+          case 'help':
+            addLog('OK', 'Available commands:', true);
+            setTimeout(() => addLog('INFO', '1. ping | 2. help | 3. alive | 4. hack | 5. owner', true), 300);
+            setTimeout(() => addLog('INFO', '6. saba | 7. arslan | 8. root | 9. close', true), 600);
+            break;
+            
+          case 'ping':
+            addLog('INFO', 'Pinging WhatsApp servers...', true);
+            await new Promise(r => setTimeout(r, 800));
+            addLog('OK', 'Ping successful. Latency: 42ms.', true);
+            break;
+            
+          case 'alive':
+            addLog('OK', 'System is ALIVE.', true);
+            setTimeout(() => addLog('INFO', 'Uptime: 42h 12m | Memory: 420MB / 1024MB', true), 400);
+            break;
+            
+          case 'hack':
+            addLog('WARN', 'Initializing hack protocol...', true);
+            setTimeout(() => addLog('INFO', 'Bypassing firewall... 10%', true), 500);
+            setTimeout(() => addLog('INFO', 'Bypassing firewall... 50%', true), 1000);
+            setTimeout(() => addLog('INFO', 'Bypassing firewall... 99%', true), 1500);
+            setTimeout(() => addLog('ERR', 'Access Denied. Just kidding, you are the owner! 😂', true), 2000);
+            break;
+            
+          case 'owner':
+            addLog('OK', 'Name: Arslan Tech', true);
+            setTimeout(() => addLog('INFO', 'Role: Bot Architect | Org: ARSLAN MDX', true), 300);
+            break;
+            
+          case 'saba':
+            addLog('SABA', '💖 For brown hair wali — my everything.', true);
+            setTimeout(() => addLog('SABA', 'She is the reason this bot exists. 👰', true), 500);
+            break;
+            
+          case 'arslan':
+            addLog('OK', 'ARSLAN MDX v1.0.0 Enterprise.', true);
+            setTimeout(() => addLog('INFO', 'Engine: Baileys v7 | Database: Cloud-Safe JSON', true), 300);
+            break;
+            
+          case 'root':
+            addLog('ERR', 'Access Granted. Welcome to the core, ROOT user.', true);
+            break;
+            
+          case 'close':
+            addLog('WARN', 'Shutting down terminal... Goodbye!', true);
+            setTimeout(() => termOutput.innerHTML = '', 1500);
+            break;
+            
+          default:
+            addLog('ERR', `Command not found: ${val}. Type 'help' for a list.`, true);
         }
       }
     });
 
     /* ═══════════════════════════════════════════════════════
-       6. REAL PAIRING LOGIC (Connects to Backend)
+       7. REAL PAIRING LOGIC
        ═══════════════════════════════════════════════════════ */
     const numberInput = document.getElementById('numberInput');
     const generateBtn = document.getElementById('generateBtn');
@@ -518,7 +617,7 @@
       generateBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deploying...';
       pairResult.classList.remove('show');
       
-      addLog('INFO', `Initiating pairing sequence for ${cleaned}...`, true);
+      addLog('INFO', `Initiating pairing for ${cleaned}...`, true);
 
       try {
         const res = await fetch(`${API_URL}/api/pair`, {
@@ -532,7 +631,7 @@
 
         pairCode.textContent = data.code;
         pairResult.classList.add('show');
-        addLog('OK', `Pairing Code Received: ${data.code}`, true);
+        addLog('OK', `Pairing Code: ${data.code}`, true);
         setTimeout(refreshStatus, 2000);
       } catch (err) {
         addLog('ERR', `Deployment Failed: ${err.message}`, true);
@@ -544,7 +643,7 @@
     }
 
     /* ═══════════════════════════════════════════════════════
-       7. STATUS POLLING & SESSIONS
+       8. STATUS POLLING
        ═══════════════════════════════════════════════════════ */
     async function refreshStatus() {
       try {
@@ -553,7 +652,7 @@
         if (!data.success) return;
 
         if (!data.sessions || data.sessions.length === 0) {
-          sessionList.innerHTML = `<div class="panel" style="padding: 20px; text-align: center; color: var(--muted); font-size: 14px;">No active sessions detected.</div>`;
+          sessionList.innerHTML = `<div class="panel" style="padding: 15px; text-align: center; color: var(--muted); font-size: 13px;">No active sessions detected.</div>`;
           return;
         }
 
@@ -562,17 +661,17 @@
           const initial = (s.number || '?').slice(-2);
           return `
             <div class="session-item">
-              <div style="display: flex; align-items: center; gap: 15px;">
-                <div class="avatar">${initial}</div>
-                <div>
-                  <div style="font-weight: 700; font-size: 15px;">+${s.number}</div>
-                  <div style="font-size: 12px; color: var(--muted); font-family: var(--font-mono);">${s.name || 'Device'}</div>
+              <div class="session-header">
+                <div class="session-info-mob">
+                  <div class="avatar">${initial}</div>
+                  <div>
+                    <div style="font-weight: 700; font-size: 14px;">+${s.number}</div>
+                    <div style="font-size: 11px; color: var(--muted); font-family: var(--font-mono);">${s.name || 'Device'}</div>
+                  </div>
                 </div>
+                <span style="font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 20px; background: rgba(34,197,94,0.1); color: ${cls==='connected'?'var(--green)':'var(--yellow)'};">${s.status.toUpperCase()}</span>
               </div>
-              <div style="display:flex; align-items:center; gap:15px;">
-                <span style="font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: rgba(34,197,94,0.1); color: ${cls==='connected'?'var(--green)':'var(--yellow)'};">${s.status.toUpperCase()}</span>
-                <button class="btn-unpair" onclick="unpairSession('${s.number}')"><i class="fa-solid fa-power-off"></i></button>
-              </div>
+              <button class="btn-unpair" onclick="unpairSession('${s.number}')"><i class="fa-solid fa-power-off"></i> Disconnect</button>
             </div>`;
         }).join('');
       } catch (err) { console.error(err); }
@@ -587,11 +686,9 @@
       } catch (err) { alert('Unpair failed'); }
     }
 
-    // Event Listeners
     generateBtn.addEventListener('click', generatePairingCode);
     numberInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') generatePairingCode(); });
     
-    // Initialize
     refreshStatus();
     setInterval(refreshStatus, 5000);
   </script>
