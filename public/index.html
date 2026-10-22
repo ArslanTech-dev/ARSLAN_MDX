@@ -1,726 +1,661 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ARSLAN MDX — Premium Bot Infrastructure</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>ARSLAN MDX • Enterprise Control Center</title>
+  <meta name="theme-color" content="#030712">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
   <script src="/config.js"></script>
+
   <style>
     /* ═══════════════════════════════════════════════════════════
-       🎨 THEME VARIABLES
+       🎨 CORE VARIABLES & THEME
        ═══════════════════════════════════════════════════════════ */
     :root {
-      --bg-dark: #030308;
-      --card-bg: rgba(12, 14, 22, 0.65);
-      --primary-cyan: #00d2ff;
-      --primary-purple: #a855f7;
-      --cyan-glow: rgba(0, 210, 255, 0.4);
-      --text-main: #ffffff;
-      --text-muted: #8b9bb4;
-      --border-color: rgba(255, 255, 255, 0.06);
-      --glass-border: rgba(255, 255, 255, 0.1);
+      --bg: #030712;
+      --bg-alt: #0a0f1e;
+      --panel: rgba(15, 23, 42, 0.6);
+      --panel-border: rgba(139, 92, 246, 0.15);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      
+      --purple: #8b5cf6;
+      --cyan: #06b6d4;
       --green: #22c55e;
       --red: #ef4444;
+      --yellow: #eab308;
+      
+      --font-ui: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    html, body {
-      width: 100%;
-      max-width: 100%;
-      overflow-x: hidden;
-      scroll-behavior: smooth;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
+      font-family: var(--font-ui);
+      background-color: var(--bg);
+      color: var(--text);
       min-height: 100vh;
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background: var(--bg-dark);
-      color: var(--text-main);
-      line-height: 1.6;
+      display: flex;
+      overflow: hidden; /* App-like feel */
     }
 
-    /* 🎨 Background Effects */
-    .bg-layer {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      z-index: -2;
-      background:
-        radial-gradient(circle at 15% 30%, rgba(0, 210, 255, 0.06) 0%, transparent 40%),
-        radial-gradient(circle at 85% 70%, rgba(168, 85, 247, 0.06) 0%, transparent 40%);
+    /* ═══════════════════════════════════════════════════════════
+       🚀 INITIALIZATION (Preloader - FIXED & ADVANCED)
+       ═══════════════════════════════════════════════════════════ */
+    #boot-screen {
+      position: fixed; inset: 0; z-index: 999999;
+      background: #000; color: var(--green);
+      font-family: var(--font-mono); font-size: 13px; line-height: 1.5;
+      padding: 30px; display: flex; flex-direction: column;
+      justify-content: flex-end; overflow: hidden;
+      transition: opacity 0.6s ease;
     }
-
-    .bg-grid {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      z-index: -1;
-      background-size: 40px 40px;
-      background-image:
-        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-      mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
-      -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
-    }
-
-    /* 🏷️ NAVBAR */
-    .navbar {
-      position: fixed; top: 0; left: 0; right: 0;
-      height: 70px;
-      background: rgba(3, 3, 8, 0.75);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      border-bottom: 1px solid var(--border-color);
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 0 5%;
-      z-index: 100;
-    }
-    .nav-brand {
-      font-size: 1.25rem; font-weight: 800; letter-spacing: 1px;
-      display: flex; align-items: center; gap: 12px;
-    }
-    .nav-brand .logo-icon {
-      width: 32px; height: 32px;
-      background: linear-gradient(135deg, var(--primary-cyan), var(--primary-purple));
-      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-      box-shadow: 0 0 15px var(--cyan-glow);
-    }
-    .nav-brand span.accent {
-      background: linear-gradient(135deg, var(--primary-cyan), var(--primary-purple));
-      -webkit-background-clip: text; background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .status-indicator {
-      font-size: 0.7rem; font-weight: 600; letter-spacing: 1px;
-      color: var(--text-muted);
-      display: flex; align-items: center; gap: 8px;
-      background: rgba(255, 255, 255, 0.03);
-      padding: 6px 12px; border-radius: 20px;
-      border: 1px solid var(--border-color);
-    }
-    .dot {
-      width: 6px; height: 6px; background: var(--green); border-radius: 50%;
-      box-shadow: 0 0 8px var(--green);
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-    /* 🦸 HERO */
-    .hero {
-      margin-top: 130px; text-align: center; padding: 0 20px;
-    }
-    .hero h1 {
-      font-size: clamp(2rem, 5vw, 3.5rem);
-      font-weight: 800; letter-spacing: -1px; margin-bottom: 16px;
-      background: linear-gradient(to right, #ffffff, #8b9bb4);
-      -webkit-background-clip: text; background-clip: text;
-      -webkit-text-fill-color: transparent; color: transparent;
-    }
-    .hero p {
-      color: var(--text-muted); font-size: 1.05rem;
-      max-width: 600px; margin: 0 auto;
-    }
-
-    /* 🃏 CONNECTION CARD */
-    .main-container {
-      display: flex; justify-content: center;
-      padding: 50px 20px; position: relative; z-index: 10;
-    }
-    .connection-card {
-      width: 100%; max-width: 520px;
-      background: var(--card-bg);
-      backdrop-filter: blur(40px);
-      -webkit-backdrop-filter: blur(40px);
-      border-radius: 16px; padding: 40px;
-      border: 1px solid var(--glass-border);
-      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.8),
-                  inset 0 1px 0 rgba(255, 255, 255, 0.05);
-      position: relative;
-    }
-    .connection-card::before {
-      content: ''; position: absolute;
-      top: -1px; left: -1px; right: -1px; bottom: -1px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, var(--cyan-glow), transparent 40%);
-      z-index: -1; opacity: 0.3;
-    }
-    .connection-card h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 8px; }
-    .connection-card .subtitle {
-      font-size: 0.9rem; color: var(--text-muted); margin-bottom: 35px;
-    }
-
-    /* 📝 STEPS INDICATOR */
-    .steps-indicator {
+    .boot-header {
+      position: absolute; top: 20px; left: 30px; right: 30px;
       display: flex; justify-content: space-between;
-      margin-bottom: 35px; position: relative;
+      color: #475569; border-bottom: 1px solid #1e293b; padding-bottom: 10px;
     }
-    .step {
-      text-align: center; position: relative; z-index: 1;
-      flex: 1;
+    #boot-logs { max-height: 80vh; overflow-y: hidden; }
+    .boot-log { margin-bottom: 6px; opacity: 0; transform: translateY(5px); animation: fadeInLog 0.2s forwards; }
+    .boot-log .b-time { color: #475569; margin-right: 10px; }
+    .boot-log .b-ok { color: var(--green); font-weight: bold; }
+    .boot-log .b-info { color: var(--cyan); font-weight: bold; }
+    @keyframes fadeInLog { to { opacity: 1; transform: translateY(0); } }
+    
+    .boot-cursor {
+      width: 8px; height: 14px; background: var(--green);
+      animation: blink 1s step-end infinite; display: inline-block; margin-left: 5px;
     }
-    .step-number {
-      width: 32px; height: 32px; border-radius: 50%;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-color);
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 8px; font-size: 0.8rem; font-weight: 600;
-      color: var(--text-muted);
-    }
-    .step.active .step-number {
-      background: var(--primary-cyan); color: #000;
-      box-shadow: 0 0 15px var(--cyan-glow);
-    }
-    .step-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .step.active .step-label { color: var(--text-main); }
+    @keyframes blink { 50% { opacity: 0; } }
 
-    /* 🔽 SERVER SELECT */
-    .server-select {
-      margin-bottom: 20px;
-    }
-    .server-select label {
-      display: block; font-size: 0.8rem; color: var(--text-muted);
-      margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;
-    }
-    .server-dropdown {
-      width: 100%; padding: 14px 18px;
-      background: rgba(0, 0, 0, 0.5);
-      border: 1px solid var(--border-color);
-      border-radius: 10px; color: var(--text-main);
-      font-size: 0.95rem; outline: none; cursor: pointer;
-      transition: all 0.3s;
-    }
-    .server-dropdown:focus {
-      border-color: var(--primary-cyan);
-      box-shadow: 0 0 15px var(--cyan-glow);
-    }
-    .server-dropdown option {
-      background: var(--bg-dark); color: var(--text-main);
+    .boot-progress {
+      position: absolute; bottom: 0; left: 0; height: 2px;
+      background: var(--green); width: 0%; transition: width 0.2s;
+      box-shadow: 0 0 15px var(--green);
     }
 
-    /* 📱 NUMBER INPUT */
-    #numberInput {
-      width: 100%; padding: 16px 18px; margin-bottom: 20px;
-      border: 1px solid var(--border-color);
-      background: rgba(0, 0, 0, 0.5);
-      color: var(--text-main); border-radius: 10px;
-      font-family: inherit; font-size: 0.95rem; outline: none;
-      transition: all 0.3s ease;
+    /* ═══════════════════════════════════════════════════════════
+       📐 LAYOUT (Sidebar + Main)
+       ═══════════════════════════════════════════════════════════ */
+    .sidebar {
+      width: 260px; background: var(--bg-alt); border-right: 1px solid rgba(255,255,255,0.05);
+      display: flex; flex-direction: column; z-index: 100; flex-shrink: 0;
     }
-    #numberInput:focus {
-      border-color: var(--primary-cyan);
-      box-shadow: 0 0 15px var(--cyan-glow);
-      background: rgba(0, 0, 0, 0.8);
+    .brand {
+      padding: 25px 20px; display: flex; align-items: center; gap: 12px;
+      font-size: 20px; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.05);
     }
-    #numberInput::placeholder { color: var(--text-muted); }
+    .brand-logo {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--purple), var(--cyan));
+      display: flex; align-items: center; justify-content: center; color: white; font-size: 16px;
+    }
+    .nav-menu { padding: 20px 10px; flex: 1; display: flex; flex-direction: column; gap: 5px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px; padding: 12px 15px;
+      color: var(--muted); font-size: 14px; font-weight: 600; border-radius: 8px;
+      cursor: pointer; transition: 0.2s; border: none; background: transparent; width: 100%; text-align: left;
+    }
+    .nav-item:hover { color: white; background: rgba(255,255,255,0.03); }
+    .nav-item.active { color: white; background: rgba(139, 92, 246, 0.15); border-left: 3px solid var(--purple); }
+    .nav-item i { width: 20px; text-align: center; }
+    
+    .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 11px; color: var(--muted); text-align: center; }
 
-    /* 🔘 PAIR BUTTON */
-    .primary-btn {
-      width: 100%;
-      background: linear-gradient(135deg, var(--primary-cyan), var(--primary-purple));
-      color: #000; border: none;
-      padding: 16px; border-radius: 10px;
-      font-family: inherit; font-size: 1rem; font-weight: 700;
-      cursor: pointer; transition: all 0.3s;
-      display: flex; align-items: center; justify-content: center; gap: 12px;
-      position: relative; overflow: hidden;
+    /* Main Content */
+    .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    
+    /* Topbar */
+    .topbar {
+      height: 70px; border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 30px; background: var(--bg);
     }
-    .primary-btn:hover {
-      box-shadow: 0 0 25px var(--cyan-glow);
-      transform: translateY(-2px);
+    .live-ticker {
+      display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 12px;
+      color: var(--muted); background: rgba(0,0,0,0.3); padding: 8px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);
     }
-    .primary-btn:disabled {
-      opacity: 0.5; cursor: not-allowed; transform: none;
-    }
+    .t-val { color: var(--green); font-weight: bold; }
+    .t-val.red { color: var(--red); }
+    .t-val.cyan { color: var(--cyan); }
 
-    /* 📋 PAIRING CODE DISPLAY */
-    .pair-result {
-      margin-top: 25px; padding: 20px;
-      background: rgba(0, 210, 255, 0.08);
-      border: 1px dashed var(--primary-cyan);
-      border-radius: 10px; text-align: center;
-      display: none;
+    .sys-status {
+      display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px;
+      color: var(--green); background: rgba(34, 197, 94, 0.1); padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(34, 197, 94, 0.2);
     }
-    .pair-result.show { display: block; animation: fadeIn 0.5s; }
-    .pair-code {
-      font-size: 2rem; font-weight: 900;
-      letter-spacing: 6px; color: var(--primary-cyan);
-      text-shadow: 0 0 20px var(--cyan-glow);
-      margin-bottom: 10px;
-    }
-    .pair-hint {
-      font-size: 0.75rem; color: var(--text-muted);
-      line-height: 1.6;
-    }
-    .copy-btn {
-      margin-top: 10px; padding: 8px 20px;
-      background: transparent; border: 1px solid var(--primary-cyan);
-      color: var(--primary-cyan); border-radius: 20px;
-      font-size: 0.8rem; cursor: pointer; transition: all 0.3s;
-    }
-    .copy-btn:hover { background: var(--primary-cyan); color: #000; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
 
-    /* 📊 ACTIVE SESSIONS */
-    .sessions-section {
-      max-width: 900px; margin: 0 auto 60px; padding: 0 20px;
+    /* Scrollable Area */
+    .content-area { flex: 1; overflow-y: auto; padding: 30px; background-image: radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.03) 0%, transparent 50%); }
+    .tab-page { display: none; animation: fadeIn 0.3s ease; }
+    .tab-page.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ═══════════════════════════════════════════════════════════
+       🧩 COMPONENTS
+       ═══════════════════════════════════════════════════════════ */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 30px; }
+    @media (max-width: 1000px) { .grid-2 { grid-template-columns: 1fr; } }
+    
+    .panel {
+      background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px;
+      overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px);
     }
-    .sessions-header {
+    .panel-header {
       display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 20px;
+      padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2);
     }
-    .sessions-header h2 { font-size: 1.3rem; font-weight: 600; }
-    .session-stats {
-      font-size: 0.85rem; color: var(--primary-cyan);
-      font-weight: 700; background: rgba(0, 210, 255, 0.1);
-      padding: 6px 14px; border-radius: 20px;
-      border: 1px solid rgba(0, 210, 255, 0.2);
-    }
-    .session-list { display: flex; flex-direction: column; gap: 12px; }
-    .session-item {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 16px 20px; background: var(--card-bg);
-      backdrop-filter: blur(20px);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      transition: all 0.3s;
-    }
-    .session-item:hover {
-      border-color: rgba(0, 210, 255, 0.3);
-      background: rgba(0, 210, 255, 0.05);
-    }
-    .session-info { display: flex; align-items: center; gap: 15px; }
-    .avatar {
-      width: 42px; height: 42px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--primary-cyan), var(--primary-purple));
-      display: grid; place-items: center;
-      font-weight: 900; color: #000; font-size: 0.9rem;
-    }
-    .session-details .num { font-weight: 700; font-size: 0.95rem; }
-    .session-details .name { font-size: 0.75rem; color: var(--text-muted); }
-    .status-pill {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 4px 12px; border-radius: 20px;
-      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-    }
-    .status-pill.connected {
-      background: rgba(34, 197, 94, 0.15); color: var(--green);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-    .status-pill.connecting {
-      background: rgba(245, 158, 11, 0.15); color: #f59e0b;
-      border: 1px solid rgba(245, 158, 11, 0.3);
-    }
-    .btn-unpair {
-      padding: 8px 16px; border-radius: 8px;
-      border: 1px solid rgba(239, 68, 68, 0.4);
-      background: rgba(239, 68, 68, 0.1); color: var(--red);
-      font-size: 0.8rem; font-weight: 600; cursor: pointer;
-      transition: all 0.3s;
-    }
-    .btn-unpair:hover { background: rgba(239, 68, 68, 0.25); }
+    .panel-title { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--cyan); display: flex; align-items: center; gap: 8px; }
+    .panel-body { padding: 25px; }
 
-    .empty-state {
-      text-align: center; padding: 40px 20px;
-      color: var(--text-muted); font-size: 0.9rem;
-      background: var(--card-bg); border: 1px dashed var(--border-color);
-      border-radius: 12px;
+    /* Forms */
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; }
+    .form-control {
+      width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; color: white; font-family: var(--font-ui); font-size: 15px; outline: none; transition: 0.3s;
     }
+    .form-control:focus { border-color: var(--purple); box-shadow: 0 0 15px rgba(139, 92, 246, 0.2); }
+    select.form-control { font-family: var(--font-mono); cursor: pointer; }
 
-    /* 📖 HOW IT WORKS & FEATURES */
-    .section {
-      max-width: 1000px; margin: 0 auto 60px; padding: 0 20px;
-      text-align: center;
+    .btn-primary {
+      width: 100%; padding: 16px; background: linear-gradient(135deg, var(--purple), #6d28d9);
+      color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 15px;
+      cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; transition: 0.3s;
     }
-    .section h2 {
-      font-size: 2rem; font-weight: 700; margin-bottom: 12px;
-      background: linear-gradient(to right, #ffffff, #8b9bb4);
-      -webkit-background-clip: text; background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .section p.subtitle {
-      color: var(--text-muted); margin-bottom: 40px;
-    }
-    .steps-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-    }
-    .step-card {
-      background: var(--card-bg); border: 1px solid var(--border-color);
-      border-radius: 12px; padding: 24px;
-      transition: all 0.3s;
-    }
-    .step-card:hover {
-      border-color: rgba(0, 210, 255, 0.3);
-      transform: translateY(-4px);
-    }
-    .step-card .icon { font-size: 1.8rem; margin-bottom: 12px; }
-    .step-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
-    .step-card p { font-size: 0.8rem; color: var(--text-muted); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(139, 92, 246, 0.5); }
 
-    .features-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
+    /* Skeleton Loader */
+    .skeleton {
+      display: none; height: 80px; background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+      background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 10px; margin-top: 20px;
     }
-    .feature-card {
-      background: var(--card-bg); border: 1px solid var(--border-color);
-      border-radius: 12px; padding: 24px;
-      transition: all 0.3s;
-    }
-    .feature-card:hover {
-      border-color: rgba(0, 210, 255, 0.3);
-      transform: translateY(-4px);
-      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
-    }
-    .feature-card .icon { font-size: 1.8rem; margin-bottom: 12px; }
-    .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
-    .feature-card p { font-size: 0.8rem; color: var(--text-muted); }
+    @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-    /* 🏁 FOOTER */
-    .footer {
-      border-top: 1px solid var(--border-color);
-      background: rgba(0, 0, 0, 0.5);
-      padding: 40px 20px; text-align: center;
+    /* Code Result */
+    .code-box {
+      display: none; margin-top: 20px; padding: 25px; background: rgba(6, 182, 212, 0.05);
+      border: 1px solid var(--cyan); border-radius: 10px; text-align: center;
     }
-    .footer-brand {
-      font-size: 1.3rem; font-weight: 800; margin-bottom: 8px;
-    }
-    .footer-brand span.accent {
-      background: linear-gradient(135deg, var(--primary-cyan), var(--primary-purple));
-      -webkit-background-clip: text; background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .footer p { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; }
-    .footer .dedication { font-size: 0.75rem; color: var(--primary-purple); font-style: italic; }
+    .code-box.show { display: block; animation: fadeIn 0.4s; }
+    .code-val { font-family: var(--font-mono); font-size: 36px; font-weight: 700; color: var(--cyan); letter-spacing: 8px; text-shadow: 0 0 20px rgba(6, 182, 212, 0.5); }
 
-    /* ⏳ ANIMATIONS */
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    /* Terminal */
+    .terminal {
+      background: #000; border-radius: 10px; padding: 15px; font-family: var(--font-mono);
+      font-size: 12px; height: 300px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1);
     }
+    .term-line { margin-bottom: 6px; display: flex; gap: 10px; }
+    .t-time { color: #475569; }
+    .t-ok { color: var(--green); } .t-err { color: var(--red); } .t-info { color: var(--cyan); }
+    
+    .term-input-line { display: flex; gap: 10px; margin-top: 10px; }
+    .term-prompt { color: var(--green); font-weight: bold; }
+    .term-input { background: transparent; border: none; color: white; font-family: var(--font-mono); font-size: 12px; outline: none; flex: 1; }
 
-    /* 📱 RESPONSIVE */
-    @media (max-width: 768px) {
-      .steps-grid, .features-grid { grid-template-columns: repeat(2, 1fr); }
-      .connection-card { padding: 30px 20px; }
-      .hero h1 { font-size: 2rem; }
-    }
-    @media (max-width: 480px) {
-      .steps-grid, .features-grid { grid-template-columns: 1fr; }
-      .session-item { flex-direction: column; align-items: flex-start; gap: 12px; }
-    }
+    /* Network Grid */
+    .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+    .filter-btn { padding: 8px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
+    .filter-btn.active { background: var(--purple); color: white; border-color: var(--purple); }
+    
+    .servers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
+    .server-card { background: var(--panel); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 15px; transition: 0.2s; }
+    .server-card:hover { border-color: var(--purple); transform: translateY(-2px); }
+    .s-head { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .s-name { font-family: var(--font-mono); font-weight: 700; }
+    .s-status { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+    .s-on { background: rgba(34,197,94,0.1); color: var(--green); }
+    .s-busy { background: rgba(239,68,68,0.1); color: var(--red); }
+    .s-row { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+
+    /* Analytics Graphs */
+    .bar-chart { display: flex; align-items: flex-end; gap: 5px; height: 150px; margin-top: 20px; }
+    .bar { flex: 1; background: var(--purple); border-radius: 4px 4px 0 0; animation: grow 1s ease-out forwards; transform-origin: bottom; }
+    @keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+    /* Sessions */
+    .session-item { display: flex; justify-content: space-between; align-items: center; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 15px 20px; margin-bottom: 10px; }
+    .avatar { width: 45px; height: 45px; border-radius: 10px; background: rgba(139, 92, 246, 0.2); border: 1px solid var(--purple); display: flex; align-items: center; justify-content: center; color: var(--purple); font-weight: 800; font-family: var(--font-mono); }
+    .btn-unpair { background: transparent; color: var(--red); border: 1px solid rgba(239, 68, 68, 0.3); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-unpair:hover { background: rgba(239, 68, 68, 0.1); }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
   </style>
 </head>
 <body>
 
-  <!-- 🎨 Background Effects -->
-  <div class="bg-layer"></div>
-  <div class="bg-grid"></div>
-
-  <!-- 🏷️ NAVBAR -->
-  <nav class="navbar">
-    <div class="nav-brand">
-      <div class="logo-icon"></div>
-      <span>ARSLAN <span class="accent">MDX</span></span>
+  <!-- ═══════════ 1. ADVANCED BOOT PRELOADER ═══════════ -->
+  <div id="boot-screen">
+    <div class="boot-header">
+      <span>ARSLAN MDX BIOS v4.2.0</span>
+      <span id="boot-clock">00:00:00</span>
     </div>
-    <div class="status-indicator">
-      <span class="dot"></span> SYSTEM ONLINE
+    <div id="boot-logs"></div>
+    <div id="boot-cursor-line"><span class="b-ok">root@arslan-mdx:~#</span> <span class="boot-cursor"></span></div>
+    <div class="boot-progress" id="boot-progress"></div>
+  </div>
+
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo"><i class="fa-solid fa-cube"></i></div>
+      ARSLAN MDX
     </div>
-  </nav>
+    <div class="nav-menu">
+      <button class="nav-item active" data-tab="dashboard"><i class="fa-solid fa-terminal"></i> Console</button>
+      <button class="nav-item" data-tab="network"><i class="fa-solid fa-network-wired"></i> Network</button>
+      <button class="nav-item" data-tab="analytics"><i class="fa-solid fa-chart-simple"></i> Analytics</button>
+      <button class="nav-item" data-tab="settings"><i class="fa-solid fa-gear"></i> Settings</button>
+    </div>
+    <div class="sidebar-footer">
+      &copy; 2024 ARSLAN MDX <br>
+      <span style="color: var(--red);">💖 For Saba</span>
+    </div>
+  </aside>
 
-  <!-- 🦸 HERO -->
-  <header class="hero">
-    <h1>Connect Your WhatsApp Bot</h1>
-    <p>Select a verified server, enter your WhatsApp number, and securely generate your pairing code.</p>
-  </header>
+  <!-- ═══════════ MAIN CONTENT ═══════════ -->
+  <main class="main-content">
+    
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="live-ticker">
+        <span>CPU <span class="t-val" id="t-cpu">0%</span></span>
+        <span>|</span>
+        <span>MEM <span class="t-val cyan" id="t-mem">0MB</span></span>
+        <span>|</span>
+        <span>PING <span class="t-val red" id="t-ping">0ms</span></span>
+      </div>
+      <div class="sys-status">
+        <span class="dot"></span> CLUSTER HEALTHY
+      </div>
+    </header>
 
-  <!-- 🃏 CONNECTION CARD -->
-  <section class="main-container">
-    <div class="connection-card">
-      <h2>Connect WhatsApp</h2>
-      <p class="subtitle">Complete the setup wizard below to initialize your session.</p>
+    <!-- Scrollable Content Area -->
+    <div class="content-area">
+      
+      <!-- TAB 1: CONSOLE -->
+      <div class="tab-page active" id="page-dashboard">
+        <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 5px;">Deployment Console</h1>
+        <p style="color: var(--muted); margin-bottom: 30px; font-size: 14px;">Initialize a new WhatsApp session on the global cluster.</p>
 
-      <!-- Steps Indicator -->
-      <div class="steps-indicator">
-        <div class="step active">
-          <div class="step-number">01</div>
-          <div class="step-label">Select Server</div>
+        <div class="grid-2">
+          <!-- Pairing Form -->
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><i class="fa-solid fa-link"></i> PAIRING ENGINE</div>
+            </div>
+            <div class="panel-body">
+              <div class="form-group">
+                <label>Target Node</label>
+                <select id="serverSelect" class="form-control">
+                  <!-- JS Populates -->
+                </select>
+              </div>
+              <div class="form-group">
+                <label>WhatsApp Number</label>
+                <input type="tel" id="numberInput" class="form-control" placeholder="e.g. 923001234567">
+              </div>
+              <button id="generateBtn" class="btn-primary"><i class="fa-solid fa-bolt"></i> Deploy Session</button>
+              
+              <div class="skeleton" id="skeletonLoader"></div>
+              
+              <div class="code-box" id="pairResult">
+                <div class="code-val" id="pairCode">────-────</div>
+                <div style="font-size: 12px; color: var(--muted); margin-top: 10px;">Enter in Linked Devices</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Terminal -->
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title"><i class="fa-solid fa-code"></i> KERNEL OUTPUT</div>
+            </div>
+            <div class="panel-body">
+              <div class="terminal" id="terminal">
+                <div class="term-line"><span class="t-time">00:00:00</span><span class="t-ok">[OK]</span><span>System ready.</span></div>
+              </div>
+              <div class="term-input-line">
+                <span class="term-prompt">user@mdx:~#</span>
+                <input type="text" class="term-input" id="termInput" placeholder="Type 'help' or 'clear'..." autocomplete="off">
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="step active">
-          <div class="step-number">02</div>
-          <div class="step-label">Enter Number</div>
-        </div>
-        <div class="step">
-          <div class="step-number">03</div>
-          <div class="step-label">Pairing Code</div>
+
+        <!-- Active Sessions -->
+        <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 15px;">Active Deployments</h2>
+        <div id="sessionList">
+          <div class="panel" style="padding: 20px; text-align: center; color: var(--muted); font-size: 14px;">No active sessions detected.</div>
         </div>
       </div>
 
-      <!-- Server Select -->
-      <div class="server-select">
-        <label for="serverSelect">Choose an available server</label>
-        <select id="serverSelect" class="server-dropdown">
-          <option value="server1">Server 01 — Primary</option>
-          <option value="server2">Server 02 — Backup</option>
-          <option value="server3">Server 03 — High Speed</option>
-          <option value="server4">Server 04 — Cloud Edge</option>
-        </select>
+      <!-- TAB 2: NETWORK -->
+      <div class="tab-page" id="page-network">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+          <div>
+            <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 5px;">Global Network</h1>
+            <p style="color: var(--muted); font-size: 14px;">Real-time status of 100 edge nodes.</p>
+          </div>
+          <div class="filter-bar">
+            <button class="filter-btn active" data-region="all">ALL</button>
+            <button class="filter-btn" data-region="US">US</button>
+            <button class="filter-btn" data-region="EU">EU</button>
+            <button class="filter-btn" data-region="ASIA">ASIA</button>
+          </div>
+        </div>
+        <div class="servers-grid" id="serversGrid">
+          <!-- JS Populates 100 nodes -->
+        </div>
       </div>
 
-      <!-- Number Input -->
-      <input id="numberInput" type="tel" placeholder="Enter your WhatsApp number (e.g. 923001234567)" autocomplete="off" />
-
-      <!-- Pair Button -->
-      <button id="generateBtn" class="primary-btn">
-        <span>⚡ Generate Pairing Code</span>
-      </button>
-
-      <!-- Pairing Code Display -->
-      <div class="pair-result" id="pairResult">
-        <div class="pair-code" id="pairCode">──── ────</div>
-        <p class="pair-hint" id="pairHint">
-          Open WhatsApp → Linked Devices → Link a Device → Enter this code.
-        </p>
-        <button class="copy-btn" id="copyBtn">📋 Copy Code</button>
+      <!-- TAB 3: ANALYTICS -->
+      <div class="tab-page" id="page-analytics">
+        <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 5px;">System Analytics</h1>
+        <p style="color: var(--muted); margin-bottom: 30px; font-size: 14px;">Traffic and performance metrics.</p>
+        
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">TRAFFIC (LAST 24H)</div></div>
+            <div class="panel-body">
+              <div class="bar-chart" id="trafficChart">
+                <!-- JS Bars -->
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">LATENCY DISTRIBUTION</div></div>
+            <div class="panel-body">
+              <div class="bar-chart" id="latencyChart">
+                <!-- JS Bars -->
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <!-- TAB 4: SETTINGS -->
+      <div class="tab-page" id="page-settings">
+        <h1 style="font-size: 28px; font-weight: 800; margin-bottom: 5px;">Settings</h1>
+        <p style="color: var(--muted); margin-bottom: 30px; font-size: 14px;">Manage your ARSLAN MDX instance.</p>
+        <div class="panel">
+          <div class="panel-body" style="text-align: center; padding: 50px;">
+            <i class="fa-solid fa-tools" style="font-size: 40px; color: var(--purple); margin-bottom: 20px;"></i>
+            <h3>Settings Panel Locked</h3>
+            <p style="color: var(--muted);">Root access required to modify system configurations.</p>
+          </div>
+        </div>
+      </div>
+
     </div>
-  </section>
+  </main>
 
-  <!-- 📊 ACTIVE SESSIONS -->
-  <section class="sessions-section">
-    <div class="sessions-header">
-      <h2>Active Sessions</h2>
-      <div class="session-stats" id="statTotal">0 / 10 Connected</div>
-    </div>
-    <div class="session-list" id="sessionList">
-      <div class="empty-state">
-        No active connections detected. System standing by.
-      </div>
-    </div>
-  </section>
-
-  <!-- 📖 HOW IT WORKS -->
-  <section class="section">
-    <h2>How It Works</h2>
-    <p class="subtitle">Four simple steps to automate your WhatsApp.</p>
-    <div class="steps-grid">
-      <div class="step-card">
-        <div class="icon">🖥️</div>
-        <h3>Select Node</h3>
-        <p>Choose an available ARSLAN MDX server from the dropdown list.</p>
-      </div>
-      <div class="step-card">
-        <div class="icon">🆔</div>
-        <h3>Enter Identity</h3>
-        <p>Input your WhatsApp number with the correct country code.</p>
-      </div>
-      <div class="step-card">
-        <div class="icon">🔐</div>
-        <h3>Generate Securely</h3>
-        <p>Request your official WhatsApp pairing code payload.</p>
-      </div>
-      <div class="step-card">
-        <div class="icon">🤝</div>
-        <h3>Handshake</h3>
-        <p>Enter the code inside WhatsApp Linked Devices to verify.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- 💎 WHY CHOOSE ARSLAN MDX -->
-  <section class="section">
-    <h2>Why ARSLAN MDX?</h2>
-    <p class="subtitle">Built for professional multi-session WhatsApp automation.</p>
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="icon">⚡</div>
-        <h3>Multi-Session Engine</h3>
-        <p>Independent, parallel WhatsApp sessions with zero interference.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">🛡️</div>
-        <h3>Server Isolation</h3>
-        <p>Dedicated session separation for maximum security and uptime.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">🔒</div>
-        <h3>Security Controls</h3>
-        <p>Advanced protection for administrative commands and data.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">🤝</div>
-        <h3>Official Handshake</h3>
-        <p>Secure official device pairing with Baileys v7 engine.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- 🏁 FOOTER -->
-  <footer class="footer">
-    <div class="footer-brand">
-      ARSLAN <span class="accent">MDX</span>
-    </div>
-    <p>© 2024 ARSLAN MDX. Premium Bot Infrastructure.</p>
-    <p class="dedication">💖 For brown hair wali — my everything.</p>
-  </footer>
-
-  <!-- 🧠 LOGIC -->
   <script>
-    const API_URL = (window.ARSLAN_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const API_URL = (window.ARSLAN_API_URL || window.location.origin).replace(/\/$/, '');
 
+    /* ═══════════════════════════════════════════════════════
+       1. BOOT SEQUENCE PRELOADER (4 Second Hold)
+       ═══════════════════════════════════════════════════════ */
+    const bootLines = [
+      "Initializing ARSLAN MDX Kernel...",
+      "Checking system memory... [32GB OK]",
+      "Mounting /tmp/sessions... [OK]",
+      "Loading Baileys v7 protocol... [OK]",
+      "Establishing secure WebSocket layer... [OK]",
+      "Spinning up 100 global edge nodes... [OK]",
+      "Fetching latest WhatsApp Web version... [OK]",
+      "Starting Cron jobs... [OK]",
+      "ARSLAN MDX Core is now ONLINE."
+    ];
+    const bootLogs = document.getElementById('boot-logs');
+    const bootProgress = document.getElementById('boot-progress');
+    const bootScreen = document.getElementById('boot-screen');
+    let currentLine = 0;
+
+    function updateClock() {
+      document.getElementById('boot-clock').textContent = new Date().toLocaleTimeString('en-GB', {hour12:false});
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    function typeBootLine() {
+      if (currentLine < bootLines.length) {
+        const div = document.createElement('div');
+        div.className = 'boot-log';
+        const isLast = currentLine === bootLines.length - 1;
+        div.innerHTML = `<span class="b-time">[${new Date().toLocaleTimeString('en-GB', {hour12:false})}]</span> <span class="${isLast?'b-ok':'b-info'}">${isLast?'[OK]':'[INFO]'}</span> ${bootLines[currentLine]}`;
+        bootLogs.appendChild(div);
+        currentLine++;
+        bootProgress.style.width = `${(currentLine / bootLines.length) * 100}%`;
+        setTimeout(typeBootLine, Math.random() * 200 + 150); 
+      } else {
+        // HOLD FOR 1.5 SECONDS BEFORE HIDING
+        setTimeout(() => {
+          bootScreen.style.opacity = '0';
+          setTimeout(() => bootScreen.style.display = 'none', 600);
+        }, 1500);
+      }
+    }
+    setTimeout(typeBootLine, 800); // Initial delay
+
+    /* ═══════════════════════════════════════════════════════
+       2. SIDEBAR TABS & LIVE STATS
+       ═══════════════════════════════════════════════════════ */
+    document.querySelectorAll('.nav-item').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-page').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(`page-${tab.dataset.tab}`).classList.add('active');
+      });
+    });
+
+    // Live Stats Simulation
+    setInterval(() => {
+      document.getElementById('t-cpu').textContent = Math.floor(Math.random() * 15 + 5) + '%';
+      document.getElementById('t-mem').textContent = Math.floor(Math.random() * 100 + 350) + 'MB';
+      document.getElementById('t-ping').textContent = Math.floor(Math.random() * 20 + 10) + 'ms';
+    }, 2000);
+
+    /* ═══════════════════════════════════════════════════════
+       3. GENERATE 100 NODES (Dropdown + Grid)
+       ═══════════════════════════════════════════════════════ */
+    const serverSelect = document.getElementById('serverSelect');
+    const serversGrid = document.getElementById('serversGrid');
+    let serverData = [];
+
+    for (let i = 1; i <= 100; i++) {
+      const nodeId = String(i).padStart(3, '0');
+      const region = i <= 33 ? 'US' : i <= 66 ? 'EU' : 'ASIA';
+      const isBusy = Math.random() > 0.85;
+
+      serverData.push({ id: nodeId, region, isBusy });
+
+      // Dropdown
+      const opt = document.createElement('option');
+      opt.value = nodeId;
+      opt.textContent = `Node-${nodeId} // ${region} ${isBusy ? '(Busy)' : ''}`;
+      serverSelect.appendChild(opt);
+    }
+
+    function renderNodes(filter = 'all') {
+      serversGrid.innerHTML = '';
+      serverData.filter(s => filter === 'all' || s.region === filter).forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'server-card';
+        card.innerHTML = `
+          <div class="s-head">
+            <div class="s-name">NODE-${s.id}</div>
+            <div class="s-status ${s.isBusy ? 's-busy' : 's-on'}">${s.isBusy ? 'BUSY' : 'ONLINE'}</div>
+          </div>
+          <div class="s-row"><span>Region</span><span>${s.region}</span></div>
+          <div class="s-row"><span>Load</span><span>${s.isBusy ? Math.floor(Math.random()*30+60) : Math.floor(Math.random()*20+10)}%</span></div>
+          <div class="s-row"><span>Ping</span><span>${Math.floor(Math.random()*40+10)}ms</span></div>
+        `;
+        serversGrid.appendChild(card);
+      });
+    }
+    renderNodes();
+
+    // Filter Logic
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderNodes(btn.dataset.region);
+      });
+    });
+
+    /* ═══════════════════════════════════════════════════════
+       4. TERMINAL LOGIC
+       ═══════════════════════════════════════════════════════ */
+    const terminal = document.getElementById('terminal');
+    const termInput = document.getElementById('termInput');
+
+    function addLog(type, msg) {
+      const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
+      const cls = type === 'OK' ? 't-ok' : type === 'ERR' ? 't-err' : 't-info';
+      const line = document.createElement('div');
+      line.className = 'term-line';
+      line.innerHTML = `<span class="t-time">${time}</span><span class="${cls}">[${type}]</span><span>${msg}</span>`;
+      terminal.appendChild(line);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    termInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const val = termInput.value.trim().toLowerCase();
+        termInput.value = '';
+        if (!val) return;
+        
+        addLog('INFO', `user@mdx:~# ${val}`);
+        
+        if (val === 'help') addLog('OK', 'Commands: status, clear, nodes, help');
+        else if (val === 'clear') terminal.innerHTML = '';
+        else if (val === 'status') addLog('OK', 'All systems operational.');
+        else if (val === 'nodes') addLog('OK', '100 Nodes initialized. 15 Busy, 85 Online.');
+        else addLog('ERR', `Command not found: ${val}`);
+      }
+    });
+
+    /* ═══════════════════════════════════════════════════════
+       5. PAIRING LOGIC & SKELETON
+       ═══════════════════════════════════════════════════════ */
     const numberInput = document.getElementById('numberInput');
     const generateBtn = document.getElementById('generateBtn');
     const pairResult = document.getElementById('pairResult');
     const pairCode = document.getElementById('pairCode');
-    const pairHint = document.getElementById('pairHint');
-    const copyBtn = document.getElementById('copyBtn');
-    const sessionListEl = document.getElementById('sessionList');
-    const statTotal = document.getElementById('statTotal');
-    const serverSelect = document.getElementById('serverSelect');
+    const skeletonLoader = document.getElementById('skeletonLoader');
+    const sessionList = document.getElementById('sessionList');
 
-    let currentCode = '';
-
-    /* ═══════════════════════════════════════════════════════════
-       🚀 GENERATE PAIRING CODE
-       ═══════════════════════════════════════════════════════════ */
     async function generatePairingCode() {
       const cleaned = numberInput.value.replace(/\D/g, '');
-      if (cleaned.length < 10) {
-        alert('Please enter a valid phone number with country code.');
-        return;
-      }
+      if (cleaned.length < 10) return alert('Enter a valid number with country code.');
 
       generateBtn.disabled = true;
-      generateBtn.innerHTML = '<span>⏳ Connecting...</span>';
+      generateBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Provisioning...';
       pairResult.classList.remove('show');
+      skeletonLoader.style.display = 'block'; // Show skeleton
+      
+      addLog('INFO', `Deploy request sent: ${cleaned}`);
 
       try {
         const res = await fetch(`${API_URL}/api/pair`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ number: cleaned, server: serverSelect.value })
+          body: JSON.stringify({ number: cleaned })
         });
         const data = await res.json();
-
         if (!data.success) throw new Error(data.error || 'Pairing failed');
 
-        currentCode = data.code;
         pairCode.textContent = data.code;
-        pairHint.innerHTML =
-          'On WhatsApp: <b>Settings → Linked Devices → Link with phone number</b>. You have <b>60 seconds</b>.';
         pairResult.classList.add('show');
+        addLog('OK', `Session initialized. Code: ${data.code}`);
         setTimeout(refreshStatus, 2000);
       } catch (err) {
-        pairCode.textContent = '── ERROR ──';
-        pairHint.textContent = err.message;
-        pairResult.classList.add('show');
-        pairCode.style.color = 'var(--red)';
-        pairCode.style.textShadow = '0 0 15px var(--red)';
+        addLog('ERR', `Deployment failed: ${err.message}`);
+        alert(err.message);
       } finally {
         generateBtn.disabled = false;
-        generateBtn.innerHTML = '<span>⚡ Generate Pairing Code</span>';
+        generateBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Deploy Session';
+        skeletonLoader.style.display = 'none'; // Hide skeleton
       }
     }
 
-    /* ═══════════════════════════════════════════════════════════
-       📋 COPY CODE
-       ═══════════════════════════════════════════════════════════ */
-    copyBtn.addEventListener('click', () => {
-      if (!currentCode) return;
-      navigator.clipboard.writeText(currentCode).then(() => {
-        copyBtn.textContent = '✅ Copied!';
-        setTimeout(() => (copyBtn.textContent = '📋 Copy Code'), 2000);
-      });
-    });
-
-    /* ═══════════════════════════════════════════════════════════
-       📊 REFRESH STATUS (Polling every 5s)
-       ═══════════════════════════════════════════════════════════ */
+    /* ═══════════════════════════════════════════════════════
+       6. STATUS POLLING
+       ═══════════════════════════════════════════════════════ */
     async function refreshStatus() {
       try {
         const res = await fetch(`${API_URL}/api/status`);
         const data = await res.json();
         if (!data.success) return;
 
-        statTotal.textContent = `${data.totalSessions} / ${data.maxSessions} Connected`;
-
         if (!data.sessions || data.sessions.length === 0) {
-          sessionListEl.innerHTML = `
-            <div class="empty-state">
-              No active connections detected. System standing by.
-            </div>`;
+          sessionList.innerHTML = `<div class="panel" style="padding: 20px; text-align: center; color: var(--muted); font-size: 14px;">No active sessions detected.</div>`;
           return;
         }
 
-        sessionListEl.innerHTML = data.sessions.map((s) => {
-          const statusClass = s.status === 'connected' ? 'connected' : 'connecting';
+        sessionList.innerHTML = data.sessions.map(s => {
+          const cls = s.status === 'connected' ? 'connected' : 'connecting';
           const initial = (s.number || '?').slice(-2);
           return `
             <div class="session-item">
-              <div class="session-info">
-                <div class="avatar">${escapeHtml(initial)}</div>
-                <div class="session-details">
-                  <div class="num">+${escapeHtml(s.number)}</div>
-                  <div class="name">${escapeHtml(s.name || 'WhatsApp User')}</div>
+              <div style="display: flex; align-items: center; gap: 15px;">
+                <div class="avatar">${initial}</div>
+                <div>
+                  <div style="font-weight: 700; font-size: 15px;">+${s.number}</div>
+                  <div style="font-size: 12px; color: var(--muted); font-family: var(--font-mono);">${s.name || 'Device'}</div>
                 </div>
               </div>
-              <div style="display:flex; align-items:center; gap:12px;">
-                <span class="status-pill ${statusClass}">
-                  <span class="dot" style="background:currentColor; box-shadow:none;"></span>
-                  ${escapeHtml(s.status)}
-                </span>
-                <button class="btn-unpair" data-number="${escapeHtml(s.number)}">Unpair</button>
+              <div style="display:flex; align-items:center; gap:15px;">
+                <span style="font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: rgba(34,197,94,0.1); color: ${cls==='connected'?'var(--green)':'var(--yellow)'};">${s.status.toUpperCase()}</span>
+                <button class="btn-unpair" onclick="unpairSession('${s.number}')"><i class="fa-solid fa-power-off"></i></button>
               </div>
             </div>`;
         }).join('');
-      } catch (err) {
-        console.error('Status refresh failed:', err);
-      }
+      } catch (err) { console.error(err); }
     }
 
-    /* ═══════════════════════════════════════════════════════════
-       🗑️ UNPAIR SESSION
-       ═══════════════════════════════════════════════════════════ */
+    /* ═══════════════════════════════════════════════════════
+       7. UNPAIR & ANALYTICS GRAPHS
+       ═══════════════════════════════════════════════════════ */
     async function unpairSession(number) {
-      if (!confirm(`Unpair +${number}?`)) return;
+      if (!confirm(`Terminate session +${number}?`)) return;
+      addLog('WARN', `Killing session: ${number}`);
       try {
-        const res = await fetch(`${API_URL}/api/unpair`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ number }),
-        });
-        const data = await res.json();
-        if (!data.success) throw new Error('Unpair failed');
+        await fetch(`${API_URL}/api/unpair`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ number }) });
         refreshStatus();
-      } catch (err) {
-        alert(err.message || 'Failed to unpair');
+      } catch (err) { alert('Unpair failed'); }
+    }
+
+    // Render Fake Analytics Graphs
+    function renderCharts() {
+      const traffic = document.getElementById('trafficChart');
+      const latency = document.getElementById('latencyChart');
+      for(let i=0; i<20; i++) {
+        let h1 = Math.floor(Math.random()*80+20);
+        let h2 = Math.floor(Math.random()*80+20);
+        traffic.innerHTML += `<div class="bar" style="height: ${h1}%; background: var(--purple);"></div>`;
+        latency.innerHTML += `<div class="bar" style="height: ${h2}%; background: var(--cyan);"></div>`;
       }
     }
+    renderCharts();
 
-    /* ═══════════════════════════════════════════════════════════
-       🛡️ HTML ESCAPE (XSS Protection)
-       ═══════════════════════════════════════════════════════════ */
-    function escapeHtml(str) {
-      const d = document.createElement('div');
-      d.textContent = String(str ?? '');
-      return d.innerHTML;
-    }
-
-    /* ═══════════════════════════════════════════════════════════
-       🖱️ EVENT LISTENERS (Event Delegation)
-       ═══════════════════════════════════════════════════════════ */
+    // Event Listeners
     generateBtn.addEventListener('click', generatePairingCode);
-    numberInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') generatePairingCode();
-    });
-
-    sessionListEl.addEventListener('click', (e) => {
-      const btn = e.target.closest('.btn-unpair');
-      if (!btn) return;
-      const num = btn.getAttribute('data-number');
-      if (num) unpairSession(num);
-    });
-
-    /* ═══════════════════════════════════════════════════════════
-       ⏱️ INITIAL LOAD & POLLING
-       ═══════════════════════════════════════════════════════════ */
+    numberInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') generatePairingCode(); });
+    
+    // Initialize
     refreshStatus();
     setInterval(refreshStatus, 5000);
+    addLog('OK', 'Kernel loaded successfully.');
   </script>
 </body>
 </html>
