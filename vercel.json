@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "name": "arslan-mdx-frontend",
+  "public": true,
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/public/$1"
+    }
+  ]
+}
