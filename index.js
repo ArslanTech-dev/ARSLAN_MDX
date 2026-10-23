@@ -20,7 +20,7 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 
 import { CONFIG } from './config.js';
-import { ensureSessionRoot, getSessionPath, deleteSession } from './utils/sessionManager.js';
+import { ensureSessionRoot, getSessionPath, deleteSession, listStoredSessions } from './utils/sessionManager.js';
 import { setUser, removeUser } from './utils/database.js';
 import logger from './utils/logger.js';
 import { formatPairingCode } from './pair.js';
@@ -32,7 +32,9 @@ const sessionStatus = new Map();
 
 const baileysLogger = pino({ level: 'silent' });
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const WELCOME_IMAGE_PATH = path.join(__dirname, 'assets', 'welcome.png');
+
+// ✅ FIX 1: Capital 'W' in Welcome.png
+const WELCOME_IMAGE_PATH = path.join(__dirname, 'assets', 'Welcome.png');
 
 // ═══════════════════════════════════════════════════════════════════
 // 🎨 ULTRA-ADVANCED TERMINAL BANNER
@@ -70,12 +72,32 @@ ${c.yellow} ━━━━━━━━━━━━━━━━━━━━━━�
   console.log(banner);
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// 🚀 INIT & AUTO-CONNECT
+// ═══════════════════════════════════════════════════════════════════
 export async function initSessionManager() {
   displayBanner();
   await ensureSessionRoot();
   logger.success(`💖 ARSLAN MDX Engine Initialized`);
+
+  const storedSessions = await listStoredSessions();
+  if (storedSessions.length > 0) {
+    logger.info(`🔄 Found ${storedSessions.length} saved session(s). Auto-reconnecting...`);
+    
+    for (const number of storedSessions) {
+      // ✅ isNew = false (Auto-connect par welcome message nahi jayega)
+      startBotForUser(number, false).catch((err) => {
+        logger.error(`Auto-reconnect failed for ${number}:`, err.message);
+      });
+    }
+  } else {
+    logger.info(`⏳ No saved sessions found. Waiting for new connection...`);
+  }
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// 📰 CHANNEL AUTO-FOLLOW
+// ═══════════════════════════════════════════════════════════════════
 async function followChannel(sock, url) {
   try {
     const code = String(url).match(/\/channel\/([A-Za-z0-9]+)/)?.[1];
@@ -99,40 +121,37 @@ async function followAllChannels(sock) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 🖼️ WELCOME MESSAGE (FIXED: Text will always send)
+// 🖼️ WELCOME MESSAGE
 // ═══════════════════════════════════════════════════════════════════
 async function sendWelcomeMessage(sock, number) {
   const selfJid = `${number}@s.whatsapp.net`;
   try {
-    // Try sending image first
     if (await fs.pathExists(WELCOME_IMAGE_PATH)) {
       try {
         await sock.sendMessage(selfJid, {
           image: fs.readFileSync(WELCOME_IMAGE_PATH),
           caption: CONFIG.WELCOME_IMAGE_CAPTION,
-          mimetype: 'Welcome/png',
+          mimetype: 'image/png',
         });
         logger.success(`🖼️ Welcome Image Sent to: ${number}`);
-        await new Promise((r) => setTimeout(r, 800));
+        await new Promise((r) => setTimeout(r, 1000));
       } catch (imgErr) {
         logger.error(`Image send failed (${number}):`, imgErr.message);
       }
     } else {
-      logger.warn(`⚠️ Welcome image not found at: ${WELCOME_IMAGE_PATH}`);
+      logger.warn(`⚠️ Image not found at: ${WELCOME_IMAGE_PATH}`);
     }
-    
-    // Always send text message (even if image fails)
     await sock.sendMessage(selfJid, { text: CONFIG.WELCOME_MESSAGE });
     logger.success(`📩 Welcome Text Sent to: ${number}`);
   } catch (err) {
-    logger.error(`Welcome message completely failed (${number}):`, err.message);
+    logger.error(`Welcome message failed (${number}):`, err.message);
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // 🤖 CORE — START BOT FOR USER
 // ═══════════════════════════════════════════════════════════════════
-export async function startBotForUser(number) {
+export async function startBotForUser(number, isNew = false) {
   if (activeSessions.has(number)) return activeSessions.get(number);
   if (activeSessions.size >= CONFIG.MAX_SESSIONS) {
     throw new Error(`Max ${CONFIG.MAX_SESSIONS} sessions reached.`);
@@ -165,15 +184,13 @@ export async function startBotForUser(number) {
 
   let hasOpenedOnce = false;
 
-  // 📩 MESSAGE RECEIVER (With Debug Logs)
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
     for (const msg of messages) {
       if (!msg.message || msg.key.fromMe) continue;
       
-      // Debug: Log every incoming message
       const from = msg.key.remoteJid;
-      const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+      const text = msg.message.conversation || msg.message.extendedMessage?.text || msg.message.extendedTextMessage?.text || '';
       if (text) logger.info(`📩 Incoming message from ${from}: "${text}"`);
       
       try {
@@ -209,9 +226,14 @@ export async function startBotForUser(number) {
       sessionStatus.set(number, { status: 'connected', since: Date.now() });
       await setUser(number, { number, jid: sock.user?.id, name: sock.user?.name || '', status: 'connected' });
       
-      // Delay before sending welcome to ensure connection is fully ready
-      await new Promise(r => setTimeout(r, 3000));
-      await sendWelcomeMessage(sock, number);
+      // ✅ FIX 2: Welcome Message sirf naye pair par bhejenge
+      if (isNew) {
+        logger.info(`📩 Sending Welcome Message to new pairing: ${number}`);
+        await new Promise(r => setTimeout(r, 2000)); // Small delay for connection stabilization
+        await sendWelcomeMessage(sock, number);
+        isNew = false; // Reset flag
+      }
+      
       await followAllChannels(sock);
     }
 
@@ -223,13 +245,13 @@ export async function startBotForUser(number) {
 
       if (code === 515) {
         logger.info(`🔄 Pairing accepted for ${number}. Reconnecting...`);
-        setTimeout(() => { startBotForUser(number).catch((e) => logger.error(`Reconnect failed (${number}):`, e.message)); }, 3000);
+        setTimeout(() => { startBotForUser(number, false).catch((e) => logger.error(`Reconnect failed (${number}):`, e.message)); }, 3000);
         return;
       }
 
       if (code === 405) {
         logger.warn(`⚠️ 405 Method Not Allowed for ${number}. Retrying...`);
-        setTimeout(() => { startBotForUser(number).catch((e) => logger.error(`Retry failed (${number}):`, e.message)); }, 5000);
+        setTimeout(() => { startBotForUser(number, false).catch((e) => logger.error(`Retry failed (${number}):`, e.message)); }, 5000);
         return;
       }
 
@@ -250,7 +272,7 @@ export async function startBotForUser(number) {
         logger.warn(`🗑️ Logged out & purged: ${number}`);
       } else {
         logger.info(`🔄 Reconnecting ${number} in 3s...`);
-        setTimeout(() => { startBotForUser(number).catch((e) => logger.error(`Reconnect failed (${number}):`, e.message)); }, 3000);
+        setTimeout(() => { startBotForUser(number, false).catch((e) => logger.error(`Reconnect failed (${number}):`, e.message)); }, 3000);
       }
     }
   });
@@ -266,7 +288,8 @@ export async function createPairingCode(number) {
       resolve: (c) => { clearTimeout(timeout); resolve(c); },
       reject: (e) => { clearTimeout(timeout); reject(e); },
     });
-    startBotForUser(number).catch((err) => { clearTimeout(timeout); pendingPairings.delete(number); reject(err); });
+    // ✅ isNew = true (Naya pairing hai)
+    startBotForUser(number, true).catch((err) => { clearTimeout(timeout); pendingPairings.delete(number); reject(err); });
   });
 }
 
