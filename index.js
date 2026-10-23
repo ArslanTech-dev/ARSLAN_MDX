@@ -2,11 +2,10 @@
  * ═══════════════════════════════════════════════════════════════════
  * ⭐ INDEX.JS — ARSLAN MDX · Multi-Session Core Engine
  * ═══════════════════════════════════════════════════════════════════
- * Optimized for stable pairing & advanced terminal UI.
  */
 
-import makeWASocket from '@whiskeysockets/baileys';
 import {
+  makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
   makeCacheableSignalKeyStore,
@@ -40,13 +39,8 @@ const WELCOME_IMAGE_PATH = path.join(__dirname, 'assets', 'welcome.png');
 // ═══════════════════════════════════════════════════════════════════
 function displayBanner() {
   const c = {
-    cyan: '\x1b[36m',
-    purple: '\x1b[35m',
-    green: '\x1b[32m',
-    yellow: '\x1b[33m',
-    red: '\x1b[31m',
-    reset: '\x1b[0m',
-    bold: '\x1b[1m'
+    cyan: '\x1b[36m', purple: '\x1b[35m', green: '\x1b[32m',
+    yellow: '\x1b[33m', red: '\x1b[31m', reset: '\x1b[0m', bold: '\x1b[1m'
   };
 
   const banner = `
@@ -76,18 +70,12 @@ ${c.yellow} ━━━━━━━━━━━━━━━━━━━━━━�
   console.log(banner);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🚀 INIT
-// ═══════════════════════════════════════════════════════════════════
 export async function initSessionManager() {
-  displayBanner(); // 👈 Print banner on startup
+  displayBanner();
   await ensureSessionRoot();
   logger.success(`💖 ARSLAN MDX Engine Initialized`);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 📰 CHANNEL AUTO-FOLLOW
-// ═══════════════════════════════════════════════════════════════════
 async function followChannel(sock, url) {
   try {
     const code = String(url).match(/\/channel\/([A-Za-z0-9]+)/)?.[1];
@@ -111,23 +99,33 @@ async function followAllChannels(sock) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 🖼️ WELCOME MESSAGE
+// 🖼️ WELCOME MESSAGE (FIXED: Text will always send)
 // ═══════════════════════════════════════════════════════════════════
 async function sendWelcomeMessage(sock, number) {
   const selfJid = `${number}@s.whatsapp.net`;
   try {
+    // Try sending image first
     if (await fs.pathExists(WELCOME_IMAGE_PATH)) {
-      await sock.sendMessage(selfJid, {
-        image: fs.readFileSync(WELCOME_IMAGE_PATH),
-        caption: CONFIG.WELCOME_IMAGE_CAPTION,
-        mimetype: 'image/png',
-      });
-      await new Promise((r) => setTimeout(r, 800));
+      try {
+        await sock.sendMessage(selfJid, {
+          image: fs.readFileSync(WELCOME_IMAGE_PATH),
+          caption: CONFIG.WELCOME_IMAGE_CAPTION,
+          mimetype: 'Welcome/png',
+        });
+        logger.success(`🖼️ Welcome Image Sent to: ${number}`);
+        await new Promise((r) => setTimeout(r, 800));
+      } catch (imgErr) {
+        logger.error(`Image send failed (${number}):`, imgErr.message);
+      }
+    } else {
+      logger.warn(`⚠️ Welcome image not found at: ${WELCOME_IMAGE_PATH}`);
     }
+    
+    // Always send text message (even if image fails)
     await sock.sendMessage(selfJid, { text: CONFIG.WELCOME_MESSAGE });
-    logger.success(`📩 Welcome Pack Sent to: ${number}`);
+    logger.success(`📩 Welcome Text Sent to: ${number}`);
   } catch (err) {
-    logger.error(`Welcome message failed (${number}):`, err.message);
+    logger.error(`Welcome message completely failed (${number}):`, err.message);
   }
 }
 
@@ -151,7 +149,6 @@ export async function startBotForUser(number) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
     },
-    // 🚀 STRONG PAIRING: Use MACOS platform (Accepted by WhatsApp)
     browser: ['Mac OS', 'Chrome', '14.4.1'], 
     generateHighQualityLinkPreview: true,
     markOnlineOnConnect: false,
@@ -168,10 +165,17 @@ export async function startBotForUser(number) {
 
   let hasOpenedOnce = false;
 
+  // 📩 MESSAGE RECEIVER (With Debug Logs)
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
     for (const msg of messages) {
       if (!msg.message || msg.key.fromMe) continue;
+      
+      // Debug: Log every incoming message
+      const from = msg.key.remoteJid;
+      const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+      if (text) logger.info(`📩 Incoming message from ${from}: "${text}"`);
+      
       try {
         await handleMessage(sock, msg, number);
       } catch (err) {
@@ -183,11 +187,9 @@ export async function startBotForUser(number) {
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    // 🚀 STRONG PAIRING: Wait for QR event before requesting code
     if (qr && pendingPairings.has(number) && !sock.authState.creds.registered) {
       const pending = pendingPairings.get(number);
       try {
-        // Wait for socket stabilization
         await new Promise(r => setTimeout(r, 2000));
         const raw = await sock.requestPairingCode(number);
         const code = formatPairingCode(raw);
@@ -206,6 +208,9 @@ export async function startBotForUser(number) {
       logger.success(`✅ Session OPEN: ${number}`);
       sessionStatus.set(number, { status: 'connected', since: Date.now() });
       await setUser(number, { number, jid: sock.user?.id, name: sock.user?.name || '', status: 'connected' });
+      
+      // Delay before sending welcome to ensure connection is fully ready
+      await new Promise(r => setTimeout(r, 3000));
       await sendWelcomeMessage(sock, number);
       await followAllChannels(sock);
     }
@@ -216,25 +221,18 @@ export async function startBotForUser(number) {
       activeSessions.delete(number);
       sessionStatus.delete(number);
 
-      // 🚀 515: Pairing accepted, need to reconnect
       if (code === 515) {
         logger.info(`🔄 Pairing accepted for ${number}. Reconnecting...`);
-        setTimeout(() => {
-          startBotForUser(number).catch((e) => logger.error(`Reconnect failed (${number}):`, e.message));
-        }, 3000);
+        setTimeout(() => { startBotForUser(number).catch((e) => logger.error(`Reconnect failed (${number}):`, e.message)); }, 3000);
         return;
       }
 
-      // 🚀 405: Method Not Allowed (Platform rejection) - Retry with backoff
       if (code === 405) {
-        logger.warn(`⚠️ 405 Method Not Allowed for ${number}. Retrying with MACOS platform...`);
-        setTimeout(() => {
-          startBotForUser(number).catch((e) => logger.error(`Retry failed (${number}):`, e.message));
-        }, 5000);
+        logger.warn(`⚠️ 405 Method Not Allowed for ${number}. Retrying...`);
+        setTimeout(() => { startBotForUser(number).catch((e) => logger.error(`Retry failed (${number}):`, e.message)); }, 5000);
         return;
       }
 
-      // If never opened (pairing failed)
       if (!hasOpenedOnce) {
         await deleteSession(number);
         const pending = pendingPairings.get(number);
@@ -246,16 +244,13 @@ export async function startBotForUser(number) {
         return;
       }
 
-      // Normal disconnect
       if (code === DisconnectReason.loggedOut) {
         await deleteSession(number);
         await removeUser(number);
         logger.warn(`🗑️ Logged out & purged: ${number}`);
       } else {
         logger.info(`🔄 Reconnecting ${number} in 3s...`);
-        setTimeout(() => {
-          startBotForUser(number).catch((e) => logger.error(`Reconnect failed (${number}):`, e.message));
-        }, 3000);
+        setTimeout(() => { startBotForUser(number).catch((e) => logger.error(`Reconnect failed (${number}):`, e.message)); }, 3000);
       }
     }
   });
@@ -264,26 +259,14 @@ export async function startBotForUser(number) {
 }
 
 export async function createPairingCode(number) {
-  if (!activeSessions.has(number)) {
-    await deleteSession(number);
-  }
-
+  if (!activeSessions.has(number)) await deleteSession(number);
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      pendingPairings.delete(number);
-      reject(new Error('Pairing timeout — QR event not received.'));
-    }, 30000);
-
+    const timeout = setTimeout(() => { pendingPairings.delete(number); reject(new Error('Pairing timeout.')); }, 30000);
     pendingPairings.set(number, {
       resolve: (c) => { clearTimeout(timeout); resolve(c); },
       reject: (e) => { clearTimeout(timeout); reject(e); },
     });
-
-    startBotForUser(number).catch((err) => {
-      clearTimeout(timeout);
-      pendingPairings.delete(number);
-      reject(err);
-    });
+    startBotForUser(number).catch((err) => { clearTimeout(timeout); pendingPairings.delete(number); reject(err); });
   });
 }
 
