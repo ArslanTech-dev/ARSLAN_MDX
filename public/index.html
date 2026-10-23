@@ -6,12 +6,11 @@
   <title>ARSLAN MDX • Terminal Control</title>
   <meta name="theme-color" content="#030712">
   
+  <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <script src="/config.js"></script>
 
   <style>
     /* ═══════════════════════════════════════════════════════════
@@ -377,7 +376,8 @@
   </nav>
 
   <script>
-    const API_URL = (window.ARSLAN_API_URL || window.location.origin).replace(/\/$/, '');
+    // 🚀 AUTOMATIC API URL DETECTION (For Pxxl/Localhost)
+    const API_URL = window.location.origin.replace(/\/$/, '');
 
     /* ═══════════════════════════════════════════════════════
        1. MATRIX RAIN
@@ -545,23 +545,27 @@
         addLog('INFO', `root@mdx:~# ${val}`, false);
 
         switch (val) {
-          case 'help':
-            addLog('OK', 'Available commands:', true);
-            setTimeout(() => addLog('INFO', '1. ping | 2. help | 3. alive | 4. hack | 5. owner', true), 300);
-            setTimeout(() => addLog('INFO', '6. saba | 7. arslan | 8. root | 9. close', true), 600);
-            break;
-            
+          case '1':
           case 'ping':
             addLog('INFO', 'Pinging WhatsApp servers...', true);
             await new Promise(r => setTimeout(r, 800));
             addLog('OK', 'Ping successful. Latency: 42ms.', true);
             break;
             
+          case '2':
+          case 'help':
+            addLog('OK', 'Available commands:', true);
+            setTimeout(() => addLog('INFO', '1. ping | 2. help | 3. alive | 4. hack | 5. owner', true), 300);
+            setTimeout(() => addLog('INFO', '6. saba | 7. arslan | 8. root | 9. close', true), 600);
+            break;
+            
+          case '3':
           case 'alive':
             addLog('OK', 'System is ALIVE.', true);
             setTimeout(() => addLog('INFO', 'Uptime: 42h 12m | Memory: 420MB / 1024MB', true), 400);
             break;
             
+          case '4':
           case 'hack':
             addLog('WARN', 'Initializing hack protocol...', true);
             setTimeout(() => addLog('INFO', 'Bypassing firewall... 10%', true), 500);
@@ -570,25 +574,30 @@
             setTimeout(() => addLog('ERR', 'Access Denied. Just kidding, you are the owner! 😂', true), 2000);
             break;
             
+          case '5':
           case 'owner':
             addLog('OK', 'Name: Arslan Tech', true);
             setTimeout(() => addLog('INFO', 'Role: Bot Architect | Org: ARSLAN MDX', true), 300);
             break;
             
+          case '6':
           case 'saba':
             addLog('SABA', '💖 For brown hair wali — my everything.', true);
             setTimeout(() => addLog('SABA', 'She is the reason this bot exists. 👰', true), 500);
             break;
             
+          case '7':
           case 'arslan':
             addLog('OK', 'ARSLAN MDX v1.0.0 Enterprise.', true);
             setTimeout(() => addLog('INFO', 'Engine: Baileys v7 | Database: Cloud-Safe JSON', true), 300);
             break;
             
+          case '8':
           case 'root':
             addLog('ERR', 'Access Granted. Welcome to the core, ROOT user.', true);
             break;
             
+          case '9':
           case 'close':
             addLog('WARN', 'Shutting down terminal... Goodbye!', true);
             setTimeout(() => termOutput.innerHTML = '', 1500);
