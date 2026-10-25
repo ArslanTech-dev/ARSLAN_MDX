@@ -32,12 +32,8 @@ const sessionStatus = new Map();
 
 const baileysLogger = pino({ level: 'silent' });
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const WELCOME_IMAGE_PATH = path.join(__dirname, 'assets', 'Welcome.png');
 
-// ═══════════════════════════════════════════════════════════════════
-// 🎨 ULTRA-ADVANCED TERMINAL BANNER
-// ═══════════════════════════════════════════════════════════════════
 function displayBanner() {
   const c = {
     cyan: '\x1b[36m', purple: '\x1b[35m', green: '\x1b[32m',
@@ -71,9 +67,6 @@ ${c.yellow} ━━━━━━━━━━━━━━━━━━━━━━�
   console.log(banner);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🚀 INIT & AUTO-CONNECT
-// ═══════════════════════════════════════════════════════════════════
 export async function initSessionManager() {
   displayBanner();
   await ensureSessionRoot();
@@ -82,7 +75,6 @@ export async function initSessionManager() {
   const storedSessions = await listStoredSessions();
   if (storedSessions.length > 0) {
     logger.info(`🔄 Found ${storedSessions.length} saved session(s). Auto-reconnecting...`);
-    
     for (const number of storedSessions) {
       startBotForUser(number, false).catch((err) => {
         logger.error(`Auto-reconnect failed for ${number}:`, err.message);
@@ -93,9 +85,6 @@ export async function initSessionManager() {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 📰 CHANNEL AUTO-FOLLOW
-// ═══════════════════════════════════════════════════════════════════
 async function followChannel(sock, url) {
   try {
     const code = String(url).match(/\/channel\/([A-Za-z0-9]+)/)?.[1];
@@ -118,9 +107,6 @@ async function followAllChannels(sock) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🖼️ WELCOME MESSAGE
-// ═══════════════════════════════════════════════════════════════════
 async function sendWelcomeMessage(sock, number) {
   const selfJid = `${number}@s.whatsapp.net`;
   try {
@@ -136,8 +122,6 @@ async function sendWelcomeMessage(sock, number) {
       } catch (imgErr) {
         logger.error(`Image send failed (${number}):`, imgErr.message);
       }
-    } else {
-      logger.warn(`⚠️ Image not found at: ${WELCOME_IMAGE_PATH}`);
     }
     await sock.sendMessage(selfJid, { text: CONFIG.WELCOME_MESSAGE });
     logger.success(`📩 Welcome Text Sent to: ${number}`);
@@ -146,9 +130,6 @@ async function sendWelcomeMessage(sock, number) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🤖 CORE — START BOT FOR USER
-// ═══════════════════════════════════════════════════════════════════
 export async function startBotForUser(number, isNew = false) {
   if (activeSessions.has(number)) return activeSessions.get(number);
   if (activeSessions.size >= CONFIG.MAX_SESSIONS) {
@@ -182,22 +163,20 @@ export async function startBotForUser(number, isNew = false) {
 
   let hasOpenedOnce = false;
 
-  // 📩 MESSAGE RECEIVER (UPDATED FOR OWNER COMMANDS)
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return;
-    for (const msg of messages) {
-      if (!msg.message) continue; // Sirf empty messages ignore karega, fromMe NAHI.
+  // 🚀 MESSAGE RECEIVER: Now accepts ALL types of messages
+  sock.ev.on('messages.upsert', async (m) => {
+    for (const msg of m.messages) {
+      if (!msg.message) continue; 
       
       const from = msg.key.remoteJid;
       const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
       
-      // Debug Log (Sirf incoming messages ke liye, spam se bachne ke liye)
-      if (text && !msg.key.fromMe) {
-        logger.info(`📩 Incoming message from ${from}: "${text}"`);
+      if (text) {
+        logger.info(`[EVENT] Type: ${m.type} | fromMe: ${msg.key.fromMe} | text: "${text}"`);
       }
       
       try {
-        await handleMessage(sock, msg, number); // Ab fromMe messages bhi handleMessage tak jayenge
+        await handleMessage(sock, msg, number);
       } catch (err) {
         logger.error(`Handler error (${number}):`, err.message);
       }
