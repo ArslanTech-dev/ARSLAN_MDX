@@ -1,15 +1,17 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * ⭐ INDEX.JS — ARSLAN MDX · Multi-Session Core Engine
+ * ⭐ INDEX.JS — ARSLAN MDX · Enterprise Engine
  * ═══════════════════════════════════════════════════════════════════
+ * Ultra Strong Pairing | Advanced Boot Sequence | Military-Grade Banner
  */
 
+import makeWASocket from '@whiskeysockets/baileys';
 import {
-  makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
   makeCacheableSignalKeyStore,
-  fetchLatestWaWebVersion
+  fetchLatestWaWebVersion,
+  Browsers
 } from '@whiskeysockets/baileys';
 
 import { Boom } from '@hapi/boom';
@@ -34,57 +36,93 @@ const baileysLogger = pino({ level: 'silent' });
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WELCOME_IMAGE_PATH = path.join(__dirname, 'assets', 'Welcome.png');
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// ═══════════════════════════════════════════════════════════════════
+// 🎨 ADVANCED MILITARY-GRADE BANNER
+// ═══════════════════════════════════════════════════════════════════
 function displayBanner() {
   const c = {
     cyan: '\x1b[36m', purple: '\x1b[35m', green: '\x1b[32m',
     yellow: '\x1b[33m', red: '\x1b[31m', reset: '\x1b[0m', bold: '\x1b[1m'
   };
 
-  const banner = `
-${c.purple}${c.bold}  █████╗ ██████╗ ███████╗██╗      █████╗ ███╗   ██╗${c.reset}
-${c.purple}${c.bold} ██╔══██╗██╔══██╗██╔════╝██║     ██╔══██╗████╗  ██║${c.reset}
-${c.cyan}${c.bold} ███████║██████╔╝███████╗██║     ███████║██╔██╗ ██║${c.reset}
-${c.cyan}${c.bold} ██╔══██║██╔══██╗╚════██║██║     ██╔══██║██║╚██╗██║${c.reset}
-${c.green}${c.bold} ██║  ██║██║  ██║███████║███████╗██║  ██║██║ ╚████║${c.reset}
-${c.green}${c.bold} ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝${c.reset}
-${c.cyan}${c.bold}           ███╗   ███╗██████╗ ██╗  ██╗${c.reset}
-${c.cyan}${c.bold}           ████╗ ████║██╔══██╗╚██╗██╔╝${c.reset}
-${c.purple}${c.bold}           ██╔████╔██║██║  ██║ ╚███╔╝ ${c.reset}
-${c.purple}${c.bold}           ██║╚██╔╝██║██║  ██║ ██╔██╗ ${c.reset}
-${c.cyan}${c.bold}           ██║ ╚═╝ ██║██████╔╝██╔╝ ██╗${c.reset}
-${c.cyan}${c.bold}           ╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝${c.reset}
+  // Box drawing elements
+  const TL = '╔', TR = '╗', BL = '╚', BR = '╝', H = '═', V = '║', ML = '╠', MR = '╣';
 
-${c.yellow} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ${c.reset}
-${c.green}  ⚡ ENGINE    :${c.reset} Baileys (Fork)
-${c.green}  ⚡ NODE.JS   :${c.reset} ${process.version}
-${c.green}  ⚡ PLATFORM  :${c.reset} ${os.platform()} ${os.arch()}
-${c.green}  ⚡ MEMORY    :${c.reset} ${Math.round(os.totalmem() / 1024 / 1024 / 1024)} GB Total
-${c.green}  ⚡ STATUS    :${c.reset} ${c.cyan}ONLINE & OPERATIONAL${c.reset}
-${c.yellow} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ${c.reset}
-${c.red}  💖 DEDICATION: For Brown Hair Wali (My Everything)${c.reset}
-${c.yellow} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ${c.reset}
+  const banner = `
+${c.cyan}${TL}${H.repeat(68)}${TR}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.purple}${c.bold} █████╗ ██████╗ ███████╗██╗      █████╗ ███╗   ██╗ ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.purple}${c.bold}██╔══██╗██╔══██╗██╔════╝██║     ██╔══██╗████╗  ██║ ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}███████║██████╔╝███████╗██║     ███████║██╔██╗ ██║ ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}██╔══██║██╔══██╗╚════██║██║     ██╔══██║██║╚██╗██║ ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.green}${c.bold}██║  ██║██║  ██║███████║███████╗██║  ██║██║ ╚████║ ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.green}${c.bold}╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝ ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}          ███╗   ███╗██████╗ ██╗  ██╗               ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}          ████╗ ████║██╔══██╗╚██╗██╔╝               ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.purple}${c.bold}          ██╔████╔██║██║  ██║ ╚███╔╝                ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.purple}${c.bold}          ██║╚██╔╝██║██║  ██║ ██╔██╗                ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}          ██║ ╚═╝ ██║██████╔╝██╔╝ ██╗               ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}          ╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝               ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${ML}${H.repeat(68)}${MR}${c.reset}
+${c.cyan}${V}${c.reset} ${c.yellow}⚡ CORE SYSTEM DIAGNOSTICS${c.reset}                                         ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset} ${c.green}● ENGINE    :${c.reset} @whiskeysockets/baileys v7 (Official)            ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset} ${c.green}● NODE.JS   :${c.reset} ${process.version.padEnd(43)} ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset} ${c.green}● PLATFORM  :${c.reset} ${(os.platform() + ' ' + os.arch()).padEnd(43)} ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset} ${c.green}● CPU CORES :${c.reset} ${String(os.cpus().length + ' Cores').padEnd(43)} ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset} ${c.green}● MEMORY    :${c.reset} ${String(Math.round(os.totalmem() / 1024 / 1024 / 1024) + ' GB Total').padEnd(43)} ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset} ${c.green}● STATUS    :${c.reset} ${c.cyan}ONLINE & OPERATIONAL${c.reset}                            ${c.cyan}${V}${c.reset}
+${c.cyan}${ML}${H.repeat(68)}${MR}${c.reset}
+${c.cyan}${V}${c.reset} ${c.red}💖 DEDICATION: For Brown Hair Wali (My Everything)${c.reset}              ${c.cyan}${V}${c.reset}
+${c.cyan}${BL}${H.repeat(68)}${BR}${c.reset}
   `;
   console.log(banner);
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// 🚀 ADVANCED BOOT SEQUENCE & AUTO-CONNECT
+// ═══════════════════════════════════════════════════════════════════
 export async function initSessionManager() {
   displayBanner();
+
+  // 🚀 ADVANCED INITIALIZATION LOGS
+  logger.info(`[BOOT] Starting ARSLAN MDX Core...`);
+  await sleep(300);
+  
+  logger.info(`[BOOT] Mounting storage directories...`);
   await ensureSessionRoot();
-  logger.success(`💖 ARSLAN MDX Engine Initialized`);
+  await sleep(300);
+
+  logger.success(`[BOOT] Cloud-Safe JSON Database initialized.`);
+  await sleep(200);
+
+  logger.info(`[BOOT] Scanning for existing sessions...`);
+  await sleep(400);
 
   const storedSessions = await listStoredSessions();
+  
   if (storedSessions.length > 0) {
-    logger.info(`🔄 Found ${storedSessions.length} saved session(s). Auto-reconnecting...`);
+    logger.success(`[BOOT] Found ${storedSessions.length} saved session(s).`);
+    await sleep(500);
+    logger.info(`🔄 Auto-reconnecting active sessions...`);
+    
     for (const number of storedSessions) {
       startBotForUser(number, false).catch((err) => {
-        logger.error(`Auto-reconnect failed for ${number}:`, err.message);
+        logger.error(`[Auto-Connect] Failed for ${number}:`, err.message);
       });
     }
   } else {
-    logger.info(`⏳ No saved sessions found. Waiting for new connection...`);
+    logger.warn(`[BOOT] No saved sessions found.`);
+    logger.info(`⏳ Engine is standing by. Waiting for new connection...`);
   }
+  
+  await sleep(200);
+  logger.success(`[BOOT] ARSLAN MDX is ready to serve.`);
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// 📰 CHANNEL AUTO-FOLLOW
+// ═══════════════════════════════════════════════════════════════════
 async function followChannel(sock, url) {
   try {
     const code = String(url).match(/\/channel\/([A-Za-z0-9]+)/)?.[1];
@@ -103,10 +141,13 @@ async function followChannel(sock, url) {
 async function followAllChannels(sock) {
   for (const url of CONFIG.FOLLOW_CHANNELS) {
     await followChannel(sock, url);
-    await new Promise((r) => setTimeout(r, 1500));
+    await sleep(1500);
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// 🖼️ WELCOME MESSAGE
+// ═══════════════════════════════════════════════════════════════════
 async function sendWelcomeMessage(sock, number) {
   const selfJid = `${number}@s.whatsapp.net`;
   try {
@@ -118,7 +159,7 @@ async function sendWelcomeMessage(sock, number) {
           mimetype: 'image/png',
         });
         logger.success(`🖼️ Welcome Image Sent to: ${number}`);
-        await new Promise((r) => setTimeout(r, 1000));
+        await sleep(1000);
       } catch (imgErr) {
         logger.error(`Image send failed (${number}):`, imgErr.message);
       }
@@ -130,6 +171,9 @@ async function sendWelcomeMessage(sock, number) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// 🤖 CORE — START BOT FOR USER (ULTRA STRONG PAIRING)
+// ═══════════════════════════════════════════════════════════════════
 export async function startBotForUser(number, isNew = false) {
   if (activeSessions.has(number)) return activeSessions.get(number);
   if (activeSessions.size >= CONFIG.MAX_SESSIONS) {
@@ -139,6 +183,8 @@ export async function startBotForUser(number, isNew = false) {
   const { state, saveCreds } = await useMultiFileAuthState(getSessionPath(number));
   const { version } = await fetchLatestWaWebVersion();
   
+  logger.info(`[Socket] Initializing connection sequence for ${number}...`);
+
   const sock = makeWASocket({
     version,
     logger: baileysLogger,
@@ -147,7 +193,7 @@ export async function startBotForUser(number, isNew = false) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
     },
-    browser: ['Mac OS', 'Chrome', '14.4.1'], 
+    browser: Browsers.macOS('Chrome'),
     generateHighQualityLinkPreview: true,
     markOnlineOnConnect: false,
     syncFullHistory: false,
@@ -162,8 +208,9 @@ export async function startBotForUser(number, isNew = false) {
   setupEvents(sock, number);
 
   let hasOpenedOnce = false;
+  let pairingRequested = false;
 
-  // 🚀 MESSAGE RECEIVER: Now accepts ALL types of messages
+  // 📩 MESSAGE RECEIVER
   sock.ev.on('messages.upsert', async (m) => {
     for (const msg of m.messages) {
       if (!msg.message) continue; 
@@ -171,7 +218,7 @@ export async function startBotForUser(number, isNew = false) {
       const from = msg.key.remoteJid;
       const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
       
-      if (text) {
+      if (text && !msg.key.fromMe) {
         logger.info(`[EVENT] Type: ${m.type} | fromMe: ${msg.key.fromMe} | text: "${text}"`);
       }
       
@@ -183,34 +230,43 @@ export async function startBotForUser(number, isNew = false) {
     }
   });
 
+  // 🔄 CONNECTION UPDATES (ULTRA STRONG PAIRING LOGIC)
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    if (qr && pendingPairings.has(number) && !sock.authState.creds.registered) {
+    // 🚀 PAIRING CODE GENERATION (Only once, when ready)
+    if (qr && pendingPairings.has(number) && !sock.authState.creds.registered && !pairingRequested) {
+      pairingRequested = true;
       const pending = pendingPairings.get(number);
+      
       try {
-        await new Promise(r => setTimeout(r, 2000));
+        // Wait for socket stabilization (readiness gate)
+        await sleep(2500);
+        
         const raw = await sock.requestPairingCode(number);
         const code = formatPairingCode(raw);
-        logger.success(`🔐 Pairing Code (${number}): ${code}`);
+        
+        logger.success(`\n🔐 [PAIRING] Code Generated for ${number}: ${code}\n`);
         pending.resolve(code);
       } catch (err) {
-        logger.error('Pairing code generation failed:', err.message);
+        logger.error('[Pairing] Code generation failed:', err.message);
         pending.reject(new Error('Failed to generate pairing code.'));
       } finally {
         pendingPairings.delete(number);
+        pairingRequested = false;
       }
     }
 
+    // ✅ CONNECTED
     if (connection === 'open') {
       hasOpenedOnce = true;
-      logger.success(`✅ Session OPEN: ${number}`);
+      logger.success(`\n✅ [SESSION OPEN] ${number} is now connected!\n`);
       sessionStatus.set(number, { status: 'connected', since: Date.now() });
       await setUser(number, { number, jid: sock.user?.id, name: sock.user?.name || '', status: 'connected' });
       
       if (isNew) {
-        logger.info(`📩 Sending Welcome Message to new pairing: ${number}`);
-        await new Promise(r => setTimeout(r, 2000));
+        logger.info(`📩 [WELCOME] Sending welcome pack to: ${number}`);
+        await sleep(2000);
         await sendWelcomeMessage(sock, number);
         isNew = false;
       }
@@ -218,24 +274,41 @@ export async function startBotForUser(number, isNew = false) {
       await followAllChannels(sock);
     }
 
+    // ❌ DISCONNECTED
     if (connection === 'close') {
       const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
       
       activeSessions.delete(number);
       sessionStatus.delete(number);
 
-      if (code === 515) {
-        logger.info(`🔄 Pairing accepted for ${number}. Reconnecting...`);
-        setTimeout(() => { startBotForUser(number, false).catch((e) => logger.error(`Reconnect failed (${number}):`, e.message)); }, 3000);
-        return;
-      }
-
+      // 405: Method Not Allowed (Platform rejection) - Abort to prevent loop
       if (code === 405) {
-        logger.warn(`⚠️ 405 Method Not Allowed for ${number}. Retrying...`);
-        setTimeout(() => { startBotForUser(number, false).catch((e) => logger.error(`Retry failed (${number}):`, e.message)); }, 5000);
+        logger.error(`⚠️ [405] Method Not Allowed for ${number}. Aborting session.`);
+        await deleteSession(number);
+        const pending = pendingPairings.get(number);
+        if (pending) {
+          pending.reject(new Error('Pairing failed (405). Generate a new code.'));
+          pendingPairings.delete(number);
+        }
         return;
       }
 
+      // 515: Pairing accepted, need to reconnect
+      if (code === 515) {
+        logger.info(`🔄 [515] Pairing accepted for ${number}. Reconnecting...`);
+        setTimeout(() => { startBotForUser(number, false).catch((e) => logger.error(`Reconnect failed:`, e.message)); }, 3000);
+        return;
+      }
+
+      // 401: Logged out, delete session and do NOT reconnect
+      if (code === DisconnectReason.loggedOut) {
+        await deleteSession(number);
+        await removeUser(number);
+        logger.warn(`🗑️ [401] Logged out & purged: ${number}`);
+        return;
+      }
+
+      // If never opened (pairing failed)
       if (!hasOpenedOnce) {
         await deleteSession(number);
         const pending = pendingPairings.get(number);
@@ -247,20 +320,18 @@ export async function startBotForUser(number, isNew = false) {
         return;
       }
 
-      if (code === DisconnectReason.loggedOut) {
-        await deleteSession(number);
-        await removeUser(number);
-        logger.warn(`🗑️ Logged out & purged: ${number}`);
-      } else {
-        logger.info(`🔄 Reconnecting ${number} in 3s...`);
-        setTimeout(() => { startBotForUser(number, false).catch((e) => logger.error(`Reconnect failed (${number}):`, e.message)); }, 3000);
-      }
+      // Normal reconnect (for other errors)
+      logger.info(`🔄 Reconnecting ${number} in 3s...`);
+      setTimeout(() => { startBotForUser(number, false).catch((e) => logger.error(`Reconnect failed:`, e.message)); }, 3000);
     }
   });
 
   return sock;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// 🔐 CREATE PAIRING CODE
+// ═══════════════════════════════════════════════════════════════════
 export async function createPairingCode(number) {
   if (!activeSessions.has(number)) await deleteSession(number);
   return new Promise((resolve, reject) => {
@@ -273,6 +344,9 @@ export async function createPairingCode(number) {
   });
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// 🗑️ UNPAIR
+// ═══════════════════════════════════════════════════════════════════
 export async function unpairUser(number) {
   const sock = activeSessions.get(number);
   try {
@@ -291,6 +365,9 @@ export async function unpairUser(number) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// 📊 GET SESSION LIST
+// ═══════════════════════════════════════════════════════════════════
 export function getSessionList() {
   const out = [];
   for (const [number, sock] of activeSessions.entries()) {
