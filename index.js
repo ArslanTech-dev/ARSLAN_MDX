@@ -33,7 +33,6 @@ const sessionStatus = new Map();
 const baileysLogger = pino({ level: 'silent' });
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// ✅ FIX 1: Capital 'W' in Welcome.png
 const WELCOME_IMAGE_PATH = path.join(__dirname, 'assets', 'Welcome.png');
 
 // ═══════════════════════════════════════════════════════════════════
@@ -85,7 +84,6 @@ export async function initSessionManager() {
     logger.info(`🔄 Found ${storedSessions.length} saved session(s). Auto-reconnecting...`);
     
     for (const number of storedSessions) {
-      // ✅ isNew = false (Auto-connect par welcome message nahi jayega)
       startBotForUser(number, false).catch((err) => {
         logger.error(`Auto-reconnect failed for ${number}:`, err.message);
       });
@@ -184,17 +182,22 @@ export async function startBotForUser(number, isNew = false) {
 
   let hasOpenedOnce = false;
 
+  // 📩 MESSAGE RECEIVER (UPDATED FOR OWNER COMMANDS)
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
     for (const msg of messages) {
-      if (!msg.message || msg.key.fromMe) continue;
+      if (!msg.message) continue; // Sirf empty messages ignore karega, fromMe NAHI.
       
       const from = msg.key.remoteJid;
-      const text = msg.message.conversation || msg.message.extendedMessage?.text || msg.message.extendedTextMessage?.text || '';
-      if (text) logger.info(`📩 Incoming message from ${from}: "${text}"`);
+      const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+      
+      // Debug Log (Sirf incoming messages ke liye, spam se bachne ke liye)
+      if (text && !msg.key.fromMe) {
+        logger.info(`📩 Incoming message from ${from}: "${text}"`);
+      }
       
       try {
-        await handleMessage(sock, msg, number);
+        await handleMessage(sock, msg, number); // Ab fromMe messages bhi handleMessage tak jayenge
       } catch (err) {
         logger.error(`Handler error (${number}):`, err.message);
       }
@@ -226,12 +229,11 @@ export async function startBotForUser(number, isNew = false) {
       sessionStatus.set(number, { status: 'connected', since: Date.now() });
       await setUser(number, { number, jid: sock.user?.id, name: sock.user?.name || '', status: 'connected' });
       
-      // ✅ FIX 2: Welcome Message sirf naye pair par bhejenge
       if (isNew) {
         logger.info(`📩 Sending Welcome Message to new pairing: ${number}`);
-        await new Promise(r => setTimeout(r, 2000)); // Small delay for connection stabilization
+        await new Promise(r => setTimeout(r, 2000));
         await sendWelcomeMessage(sock, number);
-        isNew = false; // Reset flag
+        isNew = false;
       }
       
       await followAllChannels(sock);
@@ -288,7 +290,6 @@ export async function createPairingCode(number) {
       resolve: (c) => { clearTimeout(timeout); resolve(c); },
       reject: (e) => { clearTimeout(timeout); reject(e); },
     });
-    // ✅ isNew = true (Naya pairing hai)
     startBotForUser(number, true).catch((err) => { clearTimeout(timeout); pendingPairings.delete(number); reject(err); });
   });
 }
