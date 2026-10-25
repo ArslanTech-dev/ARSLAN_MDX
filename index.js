@@ -5,13 +5,11 @@
  * Ultra Strong Pairing | Advanced Boot Sequence | Military-Grade Banner
  */
 
-import makeWASocket from '@whiskeysockets/baileys';
-import {
+import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
   makeCacheableSignalKeyStore,
-  fetchLatestWaWebVersion,
-  Browsers
+  fetchLatestWaWebVersion
 } from '@whiskeysockets/baileys';
 
 import { Boom } from '@hapi/boom';
@@ -52,24 +50,23 @@ function displayBanner() {
 
   const banner = `
 ${c.cyan}${TL}${H.repeat(68)}${TR}${c.reset}
-${c.cyan}${V}${c.reset}  ${c.purple}${c.bold} █████╗ ██████╗ ███████╗██╗      █████╗ ███╗   ██╗ ${c.reset}  ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset}  ${c.purple}${c.bold}██╔══██╗██╔══██╗██╔════╝██║     ██╔══██╗████╗  ██║ ${c.reset}  ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}███████║██████╔╝███████╗██║     ███████║██╔██╗ ██║ ${c.reset}  ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}██╔══██║██╔══██╗╚════██║██║     ██╔══██║██║╚██╗██║ ${c.reset}  ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset}  ${c.green}${c.bold}██║  ██║██║  ██║███████║███████╗██║  ██║██║ ╚████║ ${c.reset}  ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset}  ${c.green}${c.bold}╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝ ${c.reset}  ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}          ███╗   ███╗██████╗ ██╗  ██╗               ${c.reset}  ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}          ████╗ ████║██╔══██╗╚██╗██╔╝               ${c.reset}  ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset}  ${c.purple}${c.bold}          ██╔████╔██║██║  ██║ ╚███╔╝                ${c.reset}  ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset}  ${c.purple}${c.bold}          ██║╚██╔╝██║██║  ██║ ██╔██╗                ${c.reset}  ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}          ██║ ╚═╝ ██║██████╔╝██╔╝ ██╗               ${c.reset}  ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}          ╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝               ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.purple}${c.bold}  █████╗ ██████╗ ███████╗██╗      █████╗ ███╗   ██╗ ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.purple}${c.bold} ██╔══██╗██╔══██╗██╔════╝██║     ██╔══██╗████╗  ██║ ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold} ███████║██████╔╝███████╗██║     ███████║██╔██╗ ██║ ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold} ██╔══██║██╔══██╗╚════██║██║     ██╔══██║██║╚██╗██║ ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.green}${c.bold} ██║  ██║██║  ██║███████║███████╗██║  ██║██║ ╚████║ ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.green}${c.bold} ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝ ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}            ███╗   ███╗██████╗ ██╗  ██╗               ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}            ████╗ ████║██╔══██╗╚██╗██╔╝               ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.purple}${c.bold}            ██╔████╔██║██║  ██║ ╚███╔╝                ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.purple}${c.bold}            ██║╚██╔╝██║██║  ██║ ██╔██╗                ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}            ██║ ╚═╝ ██║██████╔╝██╔╝ ██╗               ${c.reset}  ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}            ╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝               ${c.reset}  ${c.cyan}${V}${c.reset}
 ${c.cyan}${ML}${H.repeat(68)}${MR}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.yellow}⚡ CORE SYSTEM DIAGNOSTICS${c.reset}                                         ${c.cyan}${V}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.green}● ENGINE    :${c.reset} @whiskeysockets/baileys v7 (Official)            ${c.cyan}${V}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.green}● NODE.JS   :${c.reset} ${process.version.padEnd(43)} ${c.cyan}${V}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.green}● PLATFORM  :${c.reset} ${(os.platform() + ' ' + os.arch()).padEnd(43)} ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset} ${c.green}● CPU CORES :${c.reset} ${String(os.cpus().length + ' Cores').padEnd(43)} ${c.cyan}${V}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.green}● MEMORY    :${c.reset} ${String(Math.round(os.totalmem() / 1024 / 1024 / 1024) + ' GB Total').padEnd(43)} ${c.cyan}${V}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.green}● STATUS    :${c.reset} ${c.cyan}ONLINE & OPERATIONAL${c.reset}                            ${c.cyan}${V}${c.reset}
 ${c.cyan}${ML}${H.repeat(68)}${MR}${c.reset}
@@ -85,7 +82,6 @@ ${c.cyan}${BL}${H.repeat(68)}${BR}${c.reset}
 export async function initSessionManager() {
   displayBanner();
 
-  // 🚀 ADVANCED INITIALIZATION LOGS
   logger.info(`[BOOT] Starting ARSLAN MDX Core...`);
   await sleep(300);
   
@@ -193,7 +189,8 @@ export async function startBotForUser(number, isNew = false) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
     },
-    browser: Browsers.macOS('Chrome'),
+    // 🚀 RAW BROWSER TUPLE (Fixes Browsers.macOS error & stabilizes pairing)
+    browser: ['Mac OS', 'Chrome', '14.4.1'], 
     generateHighQualityLinkPreview: true,
     markOnlineOnConnect: false,
     syncFullHistory: false,
@@ -210,7 +207,7 @@ export async function startBotForUser(number, isNew = false) {
   let hasOpenedOnce = false;
   let pairingRequested = false;
 
-  // 📩 MESSAGE RECEIVER
+  // 📩 MESSAGE RECEIVER (Handles Owner & Public messages)
   sock.ev.on('messages.upsert', async (m) => {
     for (const msg of m.messages) {
       if (!msg.message) continue; 
@@ -240,7 +237,7 @@ export async function startBotForUser(number, isNew = false) {
       const pending = pendingPairings.get(number);
       
       try {
-        // Wait for socket stabilization (readiness gate)
+        // Wait for socket stabilization (readiness gate to prevent 405 error)
         await sleep(2500);
         
         const raw = await sock.requestPairingCode(number);
