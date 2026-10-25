@@ -3,6 +3,11 @@
  * 🧩 MESSAGE.JS — Ultimate Plugin Router & Event Interceptor
  * ═══════════════════════════════════════════════════════════════════
  */
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * 🧩 MESSAGE.JS — Ultimate Plugin Router & Event Interceptor
+ * ═══════════════════════════════════════════════════════════════════
+ */
 
 import fs from 'fs';
 import path from 'path';
@@ -21,13 +26,6 @@ let loaded = false;
 
 const messageCache = new Map();
 
-const TOP = '─❍══ ⃟ ⃟ ⃟ ⃟ ══⊷❍';
-const MID = '━━━━━━━━━━━━━━━━━━';
-const BOT = '─❍══ ⃟ ⃟ ╟ ══⊷❍';
-
-// ===============================================
-// 🔄 LOAD PLUGINS
-// ===============================================
 export async function loadPlugins() {
   if (loaded) return;
   if (!fs.existsSync(PLUGIN_DIR)) fs.mkdirSync(PLUGIN_DIR, { recursive: true });
@@ -56,9 +54,6 @@ export async function loadPlugins() {
   logger.success(`Total Plugins Loaded: ${count}`);
 }
 
-// ===============================================
-// 🔗 ANTILINK
-// ===============================================
 const LINK_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+|chat\.whatsapp\.com\/[^\s]+|wa\.me\/[^\s]+)/gi;
 
 async function handleAntilink(sock, msg, from, sender, text, sessionNumber) {
@@ -83,9 +78,6 @@ async function handleAntilink(sock, msg, from, sender, text, sessionNumber) {
   }
 }
 
-// ===============================================
-// 🗑️ ANTIDELETE
-// ===============================================
 async function handleAntidelete(sock, updates, sessionNumber) {
   try {
     const db = await readDb();
@@ -113,9 +105,6 @@ async function handleAntidelete(sock, updates, sessionNumber) {
   } catch (err) {}
 }
 
-// ===============================================
-// 📵 ANTI-CALL
-// ===============================================
 async function handleAntiCall(sock, calls, sessionNumber) {
   try {
     const db = await readDb();
@@ -129,19 +118,13 @@ async function handleAntiCall(sock, calls, sessionNumber) {
   } catch (err) {}
 }
 
-// ===============================================
-// 👋 WELCOME / GOODBYE
-// ===============================================
-async function handleGroupParticipants(sock, update, sessionNumber) {
-  // Implementation same as before
-}
+async function handleGroupParticipants(sock, update, sessionNumber) {}
 
-// ===============================================
-// 📩 MAIN MESSAGE HANDLER (CRITICAL FIXES APPLIED)
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
+// 📩 MAIN MESSAGE HANDLER (PUBLIC COMMANDS ENABLED)
+// ═══════════════════════════════════════════════════════════════════
 export async function handleMessage(sock, msg, sessionNumber) {
   try {
-    // 🚀 CRITICAL FIX 1: Load plugins if not loaded yet
     await loadPlugins();
 
     if (!msg.message) return;
@@ -152,22 +135,18 @@ export async function handleMessage(sock, msg, sessionNumber) {
     const text = extractText(msg);
     const owner = isOwner(sender);
 
-    // 🚀 DEBUG LOG 1: Print incoming message
     if (text) {
       logger.info(`[DEBUG] Msg | fromMe: ${msg.key.fromMe} | sender: ${sender} | text: "${text}"`);
     }
 
-    // Cache for Anti-Delete
     if (from !== 'status@broadcast') {
       messageCache.set(msg.key.id, { msg, from, sender });
       if (messageCache.size > 500) messageCache.delete(messageCache.keys().next().value);
     }
 
-    // Ignore bot's normal replies (but allow owner commands)
     if (msg.key.fromMe && (!text || !text.startsWith('.'))) return;
     if (from === 'status@broadcast') return;
 
-    // Antilink
     if (group && text && !owner) {
       const blocked = await handleAntilink(sock, msg, from, sender, text, sessionNumber);
       if (blocked) return;
@@ -175,7 +154,6 @@ export async function handleMessage(sock, msg, sessionNumber) {
 
     if (!text) return;
 
-    // Command Parsing
     const prefix = '.';
     if (!text.startsWith(prefix)) {
       if (!msg.key.fromMe) logger.info(`[DEBUG] No prefix. Ignoring.`);
@@ -186,7 +164,6 @@ export async function handleMessage(sock, msg, sessionNumber) {
     const cmdRaw = parts[0].toLowerCase();
     const args = parts.slice(1);
 
-    // 🚀 DEBUG LOG 2: Command Parsed
     logger.info(`[DEBUG] Command: "${cmdRaw}" | Args: [${args.join(', ')}]`);
 
     let plugin = plugins.get(cmdRaw);
@@ -197,12 +174,11 @@ export async function handleMessage(sock, msg, sessionNumber) {
       return;
     }
 
-    // Permissions
+    // 🚀 AB YEH HAR USER KE LIYE CHALEGA (Unless specifically restricted in plugin)
     if (plugin.ownerOnly && !owner) return;
     if (plugin.groupOnly && !group) return;
     if (plugin.privateOnly && group) return;
 
-    // Context Builder
     const ctx = {
       sock, msg, from, sender, isGroup: group, isOwner: owner,
       args, text, command: plugin.name, prefix, sessionNumber,
@@ -214,7 +190,6 @@ export async function handleMessage(sock, msg, sessionNumber) {
 
     try { await sock.readMessages([msg.key]); } catch {}
 
-    // 🚀 DEBUG LOG 3: Executing Plugin
     logger.success(`[DEBUG] Executing "${plugin.name}"...`);
 
     try {
