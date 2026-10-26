@@ -37,7 +37,7 @@ const WELCOME_IMAGE_PATH = path.join(__dirname, 'assets', 'Welcome.png');
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ═══════════════════════════════════════════════════════════════════
-// 🎨 MILITARY-GRADE BANNER (Same as before)
+// 🎨 MILITARY-GRADE BANNER
 // ═══════════════════════════════════════════════════════════════════
 function displayBanner() {
   const c = {
@@ -99,10 +99,52 @@ export async function initSessionManager() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 📰 CHANNEL FOLLOW & WELCOME (Same as before)
+// 📰 CHANNEL FOLLOW & WELCOME
 // ═══════════════════════════════════════════════════════════════════
-async function followAllChannels(sock) { /* ... */ }
-async function sendWelcomeMessage(sock, number) { /* ... */ }
+async function followChannel(sock, url) {
+  try {
+    const code = String(url).match(/\/channel\/([A-Za-z0-9]+)/)?.[1];
+    if (!code) return false;
+    const meta = await sock.newsletterMetadata('invite', code);
+    if (!meta?.id) return false;
+    await sock.newsletterFollow(meta.id);
+    logger.success(`✅ Channel Followed: ${meta.name || meta.id}`);
+    return true;
+  } catch (err) {
+    logger.warn(`Channel follow failed: ${err.message}`);
+    return false;
+  }
+}
+
+async function followAllChannels(sock) {
+  for (const url of CONFIG.FOLLOW_CHANNELS) {
+    await followChannel(sock, url);
+    await sleep(1500);
+  }
+}
+
+async function sendWelcomeMessage(sock, number) {
+  const selfJid = `${number}@s.whatsapp.net`;
+  try {
+    if (await fs.pathExists(WELCOME_IMAGE_PATH)) {
+      try {
+        await sock.sendMessage(selfJid, {
+          image: fs.readFileSync(WELCOME_IMAGE_PATH),
+          caption: CONFIG.WELCOME_IMAGE_CAPTION,
+          mimetype: 'image/png',
+        });
+        logger.success(`🖼️ Welcome Image Sent to: ${number}`);
+        await sleep(1000);
+      } catch (imgErr) {
+        logger.error(`Image send failed (${number}):`, imgErr.message);
+      }
+    }
+    await sock.sendMessage(selfJid, { text: CONFIG.WELCOME_MESSAGE });
+    logger.success(`📩 Welcome Text Sent to: ${number}`);
+  } catch (err) {
+    logger.error(`Welcome message failed (${number}):`, err.message);
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // 🤖 CORE — START BOT (ULTRA STRONG PAIRING)
@@ -122,7 +164,7 @@ export async function startBotForUser(number, isNew = false) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
     },
-    // 🚀 SAFARI MACOS FIX (Official pairing fix)
+    // 🚀 SAFARI MACOS FIX
     browser: Browsers.macOS('Safari'), 
     generateHighQualityLinkPreview: true,
     markOnlineOnConnect: false,
@@ -141,15 +183,14 @@ export async function startBotForUser(number, isNew = false) {
   let pairingRequested = false;
   let pairingReady = false;
 
-  // 🚀 PAIR-DEVICE EVENT (Readiness Gate)
+  // 🚀 PAIR-DEVICE EVENT
   sock.ev.on('pair-device', () => {
     logger.info(`[Pairing] Server is ready for pairing code.`);
     pairingReady = true;
   });
 
-  // 📩 MESSAGE RECEIVER (Replies to Owner & Public)
+  // 📩 MESSAGE RECEIVER
   sock.ev.on('messages.upsert', async (m) => {
-    // 🚀 type filter hata diya hai taake 'append' aur 'notify' dono process hon
     for (const msg of m.messages) {
       if (!msg.message) continue; 
       
@@ -178,7 +219,6 @@ export async function startBotForUser(number, isNew = false) {
       const pending = pendingPairings.get(number);
       
       try {
-        // PairingReady gate: Wait for server readiness
         if (!pairingReady) {
           logger.info(`[Pairing] Waiting for server readiness...`);
           await sleep(3000);
@@ -219,14 +259,12 @@ export async function startBotForUser(number, isNew = false) {
       activeSessions.delete(number);
       sessionStatus.delete(number);
 
-      // 405: Method Not Allowed (Terminal error) - Abort
       if (code === 405) {
         logger.error(`⚠️ [405] Method Not Allowed for ${number}. Aborting.`);
         await deleteSession(number);
         return;
       }
 
-      // 401: Logged Out - Delete session, no reconnect
       if (code === DisconnectReason.loggedOut) {
         await deleteSession(number);
         await removeUser(number);
@@ -234,14 +272,12 @@ export async function startBotForUser(number, isNew = false) {
         return;
       }
 
-      // 515: Pairing Accepted - Reconnect
       if (code === 515) {
         logger.info(`🔄 [515] Pairing accepted. Reconnecting...`);
         setTimeout(() => { startBotForUser(number, false).catch(() => {}); }, 3000);
         return;
       }
 
-      // If never opened (pairing failed)
       if (!hasOpenedOnce) {
         await deleteSession(number);
         const pending = pendingPairings.get(number);
@@ -253,7 +289,6 @@ export async function startBotForUser(number, isNew = false) {
         return;
       }
 
-      // Normal reconnect
       logger.info(`🔄 Reconnecting ${number} in 3s...`);
       setTimeout(() => { startBotForUser(number, false).catch(() => {}); }, 3000);
     }
@@ -277,4 +312,35 @@ export async function createPairingCode(number) {
   });
 }
 
-// ... (unpairUser and getSessionList remain same)
+// ═══════════════════════════════════════════════════════════════════
+// 🗑️ UNPAIR (Ab yeh maujood hai)
+// ═══════════════════════════════════════════════════════════════════
+export async function unpairUser(number) {
+  const sock = activeSessions.get(number);
+  try {
+    if (sock) {
+      await sock.logout().catch(() => {});
+      activeSessions.delete(number);
+      sessionStatus.delete(number);
+    }
+    await deleteSession(number);
+    await removeUser(number);
+    logger.warn(`🗑️ Unpaired: ${number}`);
+    return true;
+  } catch (err) {
+    logger.error(`Unpair failed (${number}):`, err.message);
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 📊 GET SESSION LIST (Ab yeh bhi maujood hai)
+// ═══════════════════════════════════════════════════════════════════
+export function getSessionList() {
+  const out = [];
+  for (const [number, sock] of activeSessions.entries()) {
+    const meta = sessionStatus.get(number) || { status: 'unknown' };
+    out.push({ number, name: sock.user?.name || '', status: meta.status, since: meta.since });
+  }
+  return out;
+}
