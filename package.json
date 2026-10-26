@@ -9,14 +9,18 @@
     "dev": "node --watch server.js"
   },
   "dependencies": {
-    "@hapi/boom": "^10.0.1",
     "@whiskeysockets/baileys": "7.0.0-rc14",
-    "cors": "^2.8.5",
-    "dotenv": "^18.0.9",
+    "@hapi/boom": "^10.0.1",
     "express": "^4.21.2",
     "fs-extra": "^11.3.0",
     "pino": "^9.6.0",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "audio-decode": "^2.2.3",
+    "jimp": "^0.22.12",
+    "link-preview-js": "^3.0.5",
+    "sharp": "^0.33.4"
   },
   "engines": {
     "node": ">=20.0.0"
