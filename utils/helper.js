@@ -4,8 +4,7 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-// Aapka WhatsApp number yahan daalein (bina + ke)
-const OWNER_NUMBER = '923037314690'; // 👈 APNA NUMBER YAHAN UPDATE KAREIN
+import { CONFIG } from '../config.js'; // 👈 Import CONFIG
 
 export function cleanJid(jid) {
   if (!jid) return '';
@@ -42,8 +41,9 @@ export function isGroup(jid) {
   return jid ? jid.endsWith('@g.us') : false;
 }
 
+// 🚀 Yahan OWNER_NUMBER CONFIG se aa raha hai
 export function isOwner(jid) {
-  return cleanJid(jid) === OWNER_NUMBER;
+  return cleanJid(jid) === CONFIG.OWNER_NUMBER;
 }
 
 export function getSender(msg) {
