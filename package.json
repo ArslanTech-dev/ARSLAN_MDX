@@ -9,13 +9,14 @@
     "dev": "node --watch server.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "7.0.0-rc14",
     "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.9",
     "express": "^4.21.2",
     "fs-extra": "^11.3.0",
     "pino": "^9.6.0",
-    "qrcode-terminal": "^0.12.0",
-    "cors": "^2.8.5"
+    "qrcode-terminal": "^0.12.0"
   },
   "engines": {
     "node": ">=20.0.0"
