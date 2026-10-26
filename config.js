@@ -1,38 +1,37 @@
-/**
- * ═══════════════════════════════════════════════════════════════════
- * ⚙️ CONFIG.JS — ARSLAN MDX · Enterprise Configuration
- * ═══════════════════════════════════════════════════════════════════
- */
-
 import path from 'path';
 import os from 'os';
+import 'dotenv/config'; // 👈 .env load karne ke liye
 
-// Check if running on cloud (Pxxl/Vercel) or local (Termux)
 const isProduction = process.env.NODE_ENV === 'production';
-
-// Base directory for storing data
 const baseDataDir = isProduction 
   ? (process.env.DATA_DIR || '/tmp') 
-  : path.join(process.cwd(), 'sessions_data'); // 👈 Termux mein permanent save hoga
+  : path.join(process.cwd(), 'sessions_data');
 
 export const CONFIG = {
   // 🎯 BOT IDENTITY
   BOT_NAME: 'ARSLAN MDX',
   BOT_VERSION: '1.0.0-Enterprise',
-  OWNER: 'Arslan Tech',
-
+  OWNER_NUMBER: process.env.OWNER_NUMBER || '923037314690',
+  PREFIX: process.env.PREFIX || '.',
+  
   // 🎯 SESSION LIMITS
   MAX_SESSIONS: 10,
 
-  // ☁️ CROSS-PLATFORM SAFE STORAGE PATHS
+  // ☁️ STORAGE PATHS
   DATA_DIR: baseDataDir,
   SESSION_DIR: path.join(baseDataDir, 'sessions'),
   DB_DIR: path.join(baseDataDir, 'database'),
-
-  // 🎯 SERVER PORT
   PORT: process.env.PORT || 3000,
 
-  // 🖼️ WELCOME MESSAGE
+  // 🖼️ ASSETS PATHS
+  LOGO_PATH: path.join(process.cwd(), 'assets', 'logo.png'),
+  WELCOME_IMAGE_PATH: path.join(process.cwd(), 'assets', 'Welcome.png'),
+
+  // 🔑 API KEYS
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+  UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY || '',
+
+  // 🖼️ WELCOME MESSAGES
   WELCOME_IMAGE_CAPTION:
     `⚡ *ARSLAN MDX* ⚡\n` +
     `> _Advanced Multi-User Core Online_\n\n` +
