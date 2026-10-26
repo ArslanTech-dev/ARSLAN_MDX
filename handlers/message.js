@@ -154,7 +154,8 @@ export async function handleMessage(sock, msg, sessionNumber) {
 
     if (!text) return;
 
-    const prefix = '.';
+    // Line 142 ke aas paas
+const prefix = CONFIG.PREFIX; 
     if (!text.startsWith(prefix)) {
       if (!msg.key.fromMe) logger.info(`[DEBUG] No prefix. Ignoring.`);
       return;
