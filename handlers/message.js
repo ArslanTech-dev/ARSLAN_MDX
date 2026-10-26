@@ -3,16 +3,11 @@
  * 🧩 MESSAGE.JS — Ultimate Plugin Router & Event Interceptor
  * ═══════════════════════════════════════════════════════════════════
  */
-/**
- * ═══════════════════════════════════════════════════════════════════
- * 🧩 MESSAGE.JS — Ultimate Plugin Router & Event Interceptor
- * ═══════════════════════════════════════════════════════════════════
- */
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { CONFIG } from '../config.js';
+import { CONFIG } from '../config.js'; // 👈 Import CONFIG
 import { extractText, cleanJid, isGroup, isOwner, getSender, nowTime } from '../utils/helper.js';
 import { getGroupSettings, readDb } from '../utils/database.js';
 import logger from '../utils/logger.js';
@@ -120,9 +115,6 @@ async function handleAntiCall(sock, calls, sessionNumber) {
 
 async function handleGroupParticipants(sock, update, sessionNumber) {}
 
-// ═══════════════════════════════════════════════════════════════════
-// 📩 MAIN MESSAGE HANDLER (PUBLIC COMMANDS ENABLED)
-// ═══════════════════════════════════════════════════════════════════
 export async function handleMessage(sock, msg, sessionNumber) {
   try {
     await loadPlugins();
@@ -144,7 +136,7 @@ export async function handleMessage(sock, msg, sessionNumber) {
       if (messageCache.size > 500) messageCache.delete(messageCache.keys().next().value);
     }
 
-    if (msg.key.fromMe && (!text || !text.startsWith('.'))) return;
+    if (msg.key.fromMe && (!text || !text.startsWith(CONFIG.PREFIX))) return;
     if (from === 'status@broadcast') return;
 
     if (group && text && !owner) {
@@ -154,8 +146,8 @@ export async function handleMessage(sock, msg, sessionNumber) {
 
     if (!text) return;
 
-    // Line 142 ke aas paas
-const prefix = CONFIG.PREFIX; 
+    // 🚀 Yahan CONFIG.PREFIX use ho raha hai
+    const prefix = CONFIG.PREFIX;
     if (!text.startsWith(prefix)) {
       if (!msg.key.fromMe) logger.info(`[DEBUG] No prefix. Ignoring.`);
       return;
@@ -175,7 +167,6 @@ const prefix = CONFIG.PREFIX;
       return;
     }
 
-    // 🚀 AB YEH HAR USER KE LIYE CHALEGA (Unless specifically restricted in plugin)
     if (plugin.ownerOnly && !owner) return;
     if (plugin.groupOnly && !group) return;
     if (plugin.privateOnly && group) return;
