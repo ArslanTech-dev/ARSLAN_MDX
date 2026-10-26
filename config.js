@@ -3,12 +3,14 @@ import os from 'os';
 import 'dotenv/config';
 
 const isProduction = process.env.NODE_ENV === 'production';
+const isAndroid = os.platform() === 'android'; // 👈 Check for Termux
 
 // 🚀 SMART DATA DIR LOGIC
 const getDataDir = () => {
   if (process.env.DATA_DIR) return process.env.DATA_DIR;
+  if (isAndroid) return os.tmpdir(); // Agar Termux hai, toh safe folder use karo
   if (isProduction) return '/tmp';
-  return os.tmpdir(); // Termux safe
+  return os.tmpdir(); 
 };
 
 const baseDataDir = getDataDir();
@@ -40,29 +42,8 @@ export const CONFIG = {
 ╔══════════════════════════════╗
 ║   ⚡ *A R S L A N   M D X* ⚡   ║
 ╚══════════════════════════════╝
-
 > _Next-Gen Multi-User Automation_
 > _Build: v1.0.0 Enterprise_
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-✅ *CORE DIAGNOSTICS*
-┃ ● Engine    : *Baileys v7*
-┃ ● Database  : *Cloud-Safe JSON*
-┃ ● Status    : *100% Operational*
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🎯 *SYSTEM COMMANDS*
-┃ ▸ *.menu*    — Load command matrix
-┃ ▸ *.ping*    — Measure latency
-┃ ▸ *.alive*   — System heartbeat
-┃ ▸ *.owner*   — Dev credentials
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-> *"Engineered to perfection."*
-> ─── _Arslan Tech_
 `.trim(),
 
   FOLLOW_CHANNELS: [
