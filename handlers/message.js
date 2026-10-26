@@ -2,12 +2,14 @@
  * ═══════════════════════════════════════════════════════════════════
  * 🧩 MESSAGE.JS — Ultimate Plugin Router & Event Interceptor
  * ═══════════════════════════════════════════════════════════════════
+ * Handles public commands, owner commands, antilink, antidelete, 
+ * welcome/goodbye, and anti-call.
  */
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { CONFIG } from '../config.js'; // 👈 Import CONFIG
+import { CONFIG } from '../config.js';
 import { extractText, cleanJid, isGroup, isOwner, getSender, nowTime } from '../utils/helper.js';
 import { getGroupSettings, readDb } from '../utils/database.js';
 import logger from '../utils/logger.js';
@@ -15,12 +17,17 @@ import logger from '../utils/logger.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_DIR = path.join(__dirname, '..', 'plugins');
 
+// 📦 PLUGIN REGISTRY
 const plugins = new Map();
 const aliases = new Map();
 let loaded = false;
 
+// 💾 MESSAGE CACHE (Anti-Delete ke liye RAM mein save)
 const messageCache = new Map();
 
+// ===============================================
+// 🔄 LOAD PLUGINS
+// ===============================================
 export async function loadPlugins() {
   if (loaded) return;
   if (!fs.existsSync(PLUGIN_DIR)) fs.mkdirSync(PLUGIN_DIR, { recursive: true });
@@ -49,6 +56,9 @@ export async function loadPlugins() {
   logger.success(`Total Plugins Loaded: ${count}`);
 }
 
+// ===============================================
+// 🔗 ANTILINK HANDLER
+// ===============================================
 const LINK_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+|chat\.whatsapp\.com\/[^\s]+|wa\.me\/[^\s]+)/gi;
 
 async function handleAntilink(sock, msg, from, sender, text, sessionNumber) {
@@ -67,12 +77,24 @@ async function handleAntilink(sock, msg, from, sender, text, sessionNumber) {
     if (!isBotAdmin) return false;
 
     await sock.sendMessage(from, { delete: msg.key });
+
+    const action = settings.antilink_action || 'warn';
+    const caption = `*╭┈──〔 ARSLAN 𝙼𝙳X〕─⊷*\n*├▢ 🔗 ANTILINK DETECTED*\n*├▢* @${cleanJid(sender)}\n*├▢* Links are not allowed here!\n*├▢* Action: ${action === 'kick' ? 'Kicked' : 'Warning'}\n*╰───────────────⊷*`;
+
+    await sock.sendMessage(from, { text: caption, mentions: [sender] });
+    if (action === 'kick') await sock.groupParticipantsUpdate(from, [sender], 'remove');
+
+    logger.warn(`[${sessionNumber}] Antilink triggered in ${from}`);
     return true;
   } catch (err) {
+    logger.error(`Antilink error: ${err.message}`);
     return false;
   }
 }
 
+// ===============================================
+// 🗑️ ANTIDELETE HANDLER
+// ===============================================
 async function handleAntidelete(sock, updates, sessionNumber) {
   try {
     const db = await readDb();
@@ -90,16 +112,21 @@ async function handleAntidelete(sock, updates, sessionNumber) {
       if (isOwner(sender) || originalMsg.key.fromMe) continue;
 
       const text = extractText(originalMsg);
-      const header = `🗑️ *ANTI-DELETE*\n\n👤 *Sender:* @${cleanJid(sender)}\n📝 *Message:*`;
+      const header = `*╭┈──〔 ANTI-DELETE 〕─⊷*\n*├▢ 👤 Sender:* @${cleanJid(sender)}\n*├▢ 📍 Chat:* ${isGroup(from) ? 'Group' : 'DM'}\n*├▢ 🕒 Time:* ${nowTime()}\n*├▢ 📝 Message:*`;
 
       if (text) {
-        await sock.sendMessage(from, { text: `${header}\n${text}`, mentions: [sender] });
+        await sock.sendMessage(from, { text: `${header}\n${text}\n*╰───────────────⊷*`, mentions: [sender] });
       }
       messageCache.delete(msgId);
     }
-  } catch (err) {}
+  } catch (err) {
+    logger.error(`Antidelete error: ${err.message}`);
+  }
 }
 
+// ===============================================
+// 📵 ANTI-CALL HANDLER
+// ===============================================
 async function handleAntiCall(sock, calls, sessionNumber) {
   try {
     const db = await readDb();
@@ -108,15 +135,51 @@ async function handleAntiCall(sock, calls, sessionNumber) {
     for (const call of calls) {
       if (call.status === 'offer') {
         await sock.rejectCall(call.id, call.from);
+        await sock.sendMessage(call.from, { 
+          text: `*╭┈──〔 ANTI-CALL 〕─⊷*\n*├▢ 📵 Calls are auto-rejected.*\n*╰───────────────⊷*` 
+        });
+        logger.warn(`[${sessionNumber}] Rejected call from ${call.from}`);
       }
     }
-  } catch (err) {}
+  } catch (err) {
+    logger.error(`AntiCall error: ${err.message}`);
+  }
 }
 
-async function handleGroupParticipants(sock, update, sessionNumber) {}
+// ===============================================
+// 👋 WELCOME / GOODBYE HANDLER
+// ===============================================
+async function handleGroupParticipants(sock, update, sessionNumber) {
+  try {
+    const { id, participants, action } = update;
+    const settings = await getGroupSettings(id);
 
+    if (action === 'add' && settings.welcome) {
+      const meta = await sock.groupMetadata(id);
+      for (const jid of participants) {
+        const caption = `*╭┈──〔 WELCOME 〕─⊷*\n*├▢ 💚 Hey @${cleanJid(jid)}!*\n*├▢ 🎀 Welcome to *${meta.subject}*\n*├▢ 👥 Members: ${meta.participants.length}\n*╰───────────────⊷*`;
+        await sock.sendMessage(id, { text: caption, mentions: [jid] });
+      }
+    }
+
+    if (action === 'remove' && settings.goodbye) {
+      const meta = await sock.groupMetadata(id);
+      for (const jid of participants) {
+        const caption = `*╭┈──〔 GOODBYE 〕─⊷*\n*├▢ 💔 @${cleanJid(jid)} has left*\n*├▢ 👥 Remaining: ${meta.participants.length}\n*╰───────────────⊷*`;
+        await sock.sendMessage(id, { text: caption, mentions: [jid] });
+      }
+    }
+  } catch (err) {
+    logger.error(`GroupUpdate error: ${err.message}`);
+  }
+}
+
+// ===============================================
+// 📩 MAIN MESSAGE HANDLER
+// ===============================================
 export async function handleMessage(sock, msg, sessionNumber) {
   try {
+    // 1. Load Plugins (sirf pehli baar)
     await loadPlugins();
 
     if (!msg.message) return;
@@ -127,18 +190,29 @@ export async function handleMessage(sock, msg, sessionNumber) {
     const text = extractText(msg);
     const owner = isOwner(sender);
 
+    // Debug Log
     if (text) {
       logger.info(`[DEBUG] Msg | fromMe: ${msg.key.fromMe} | sender: ${sender} | text: "${text}"`);
     }
 
+    // 2. Cache message for Anti-Delete
     if (from !== 'status@broadcast') {
       messageCache.set(msg.key.id, { msg, from, sender });
       if (messageCache.size > 500) messageCache.delete(messageCache.keys().next().value);
     }
 
-    if (msg.key.fromMe && (!text || !text.startsWith(CONFIG.PREFIX))) return;
+    // 🚀 CRITICAL FIX: Owner Commands & Loop Prevention
+    if (msg.key.fromMe) {
+      // Agar message bot ne bheja hai (fromMe) aur woh command nahi hai, toh ignore karo
+      if (!text || !text.startsWith(CONFIG.PREFIX)) {
+        return;
+      }
+      // Agar command hai, toh aage process hone do
+    }
+
     if (from === 'status@broadcast') return;
 
+    // 3. Antilink Check
     if (group && text && !owner) {
       const blocked = await handleAntilink(sock, msg, from, sender, text, sessionNumber);
       if (blocked) return;
@@ -146,7 +220,7 @@ export async function handleMessage(sock, msg, sessionNumber) {
 
     if (!text) return;
 
-    // 🚀 Yahan CONFIG.PREFIX use ho raha hai
+    // 4. Command Parsing (Dynamic Prefix)
     const prefix = CONFIG.PREFIX;
     if (!text.startsWith(prefix)) {
       if (!msg.key.fromMe) logger.info(`[DEBUG] No prefix. Ignoring.`);
@@ -167,10 +241,18 @@ export async function handleMessage(sock, msg, sessionNumber) {
       return;
     }
 
-    if (plugin.ownerOnly && !owner) return;
-    if (plugin.groupOnly && !group) return;
-    if (plugin.privateOnly && group) return;
+    // 5. Permissions
+    if (plugin.ownerOnly && !owner) {
+      return sock.sendMessage(from, { text: `*╭┈──〔 ACCESS DENIED 〕─⊷*\n*├▢ ❌ Owner Only Command.*\n*╰───────────────⊷*` }, { quoted: msg });
+    }
+    if (plugin.groupOnly && !group) {
+      return sock.sendMessage(from, { text: `*╭┈──〔 GROUP ONLY 〕─⊷*\n*├▢ ❌ Use this in a group.*\n*╰───────────────⊷*` }, { quoted: msg });
+    }
+    if (plugin.privateOnly && group) {
+      return sock.sendMessage(from, { text: `*╭┈──〔 PRIVATE ONLY 〕─⊷*\n*├▢ ❌ Use this in DM.*\n*╰───────────────⊷*` }, { quoted: msg });
+    }
 
+    // 6. Context Builder
     const ctx = {
       sock, msg, from, sender, isGroup: group, isOwner: owner,
       args, text, command: plugin.name, prefix, sessionNumber,
@@ -180,14 +262,16 @@ export async function handleMessage(sock, msg, sessionNumber) {
       send: (content, opts = {}) => sock.sendMessage(from, content, { quoted: msg, ...opts }),
     };
 
+    // 7. Auto Read
     try { await sock.readMessages([msg.key]); } catch {}
 
+    // 8. Run Plugin
     logger.success(`[DEBUG] Executing "${plugin.name}"...`);
-
     try {
       await plugin.run(ctx);
     } catch (err) {
       logger.error(`[DEBUG] Plugin "${plugin.name}" Error:`, err.message);
+      await ctx.reply(`*╭┈──〔 ERROR 〕─⊷*\n*├▢ ❌ ${err.message.slice(0, 100)}\n*╰───────────────⊷*`);
     }
 
   } catch (err) {
@@ -195,6 +279,9 @@ export async function handleMessage(sock, msg, sessionNumber) {
   }
 }
 
+// ===============================================
+// ⚙️ EVENT SETUP (Per Session)
+// ===============================================
 export function setupEvents(sock, sessionNumber) {
   sock.ev.on('group-participants.update', (u) => handleGroupParticipants(sock, u, sessionNumber));
   sock.ev.on('messages.update', (u) => handleAntidelete(sock, u, sessionNumber));
