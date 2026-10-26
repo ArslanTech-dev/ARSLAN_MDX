@@ -1,29 +1,31 @@
 import path from 'path';
 import os from 'os';
-import 'dotenv/config'; // 👈 .env load karne ke liye
+import 'dotenv/config';
 
 const isProduction = process.env.NODE_ENV === 'production';
-const baseDataDir = isProduction 
-  ? (process.env.DATA_DIR || '/tmp') 
-  : path.join(process.cwd(), 'sessions_data');
+
+// 🚀 SMART DATA DIR LOGIC
+const getDataDir = () => {
+  if (process.env.DATA_DIR) return process.env.DATA_DIR;
+  if (isProduction) return '/tmp';
+  return os.tmpdir(); // Termux safe
+};
+
+const baseDataDir = getDataDir();
 
 export const CONFIG = {
-  // 🎯 BOT IDENTITY
   BOT_NAME: 'ARSLAN MDX',
   BOT_VERSION: '1.0.0-Enterprise',
   OWNER_NUMBER: process.env.OWNER_NUMBER || '923037314690',
   PREFIX: process.env.PREFIX || '.',
   
-  // 🎯 SESSION LIMITS
   MAX_SESSIONS: 10,
-
-  // ☁️ STORAGE PATHS
   DATA_DIR: baseDataDir,
   SESSION_DIR: path.join(baseDataDir, 'sessions'),
   DB_DIR: path.join(baseDataDir, 'database'),
   PORT: process.env.PORT || 3000,
 
-  // 🖼️ ASSETS PATHS
+  // 🖼️ ASSETS
   LOGO_PATH: path.join(process.cwd(), 'assets', 'logo.png'),
   WELCOME_IMAGE_PATH: path.join(process.cwd(), 'assets', 'Welcome.png'),
 
@@ -32,10 +34,7 @@ export const CONFIG = {
   UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY || '',
 
   // 🖼️ WELCOME MESSAGES
-  WELCOME_IMAGE_CAPTION:
-    `⚡ *ARSLAN MDX* ⚡\n` +
-    `> _Advanced Multi-User Core Online_\n\n` +
-    `🛡️ _Enterprise-Grade Security Active._`,
+  WELCOME_IMAGE_CAPTION: `⚡ *ARSLAN MDX* ⚡\n> _Advanced Multi-User Core Online_\n\n🛡️ _Enterprise-Grade Security Active._`,
 
   WELCOME_MESSAGE: `
 ╔══════════════════════════════╗
@@ -50,7 +49,6 @@ export const CONFIG = {
 ✅ *CORE DIAGNOSTICS*
 ┃ ● Engine    : *Baileys v7*
 ┃ ● Database  : *Cloud-Safe JSON*
-┃ ● UI Engine : *Glassmorphism*
 ┃ ● Status    : *100% Operational*
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -60,12 +58,6 @@ export const CONFIG = {
 ┃ ▸ *.ping*    — Measure latency
 ┃ ▸ *.alive*   — System heartbeat
 ┃ ▸ *.owner*   — Dev credentials
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📢 *BROADCAST NETWORK*
-_You are now synced with:_
-┃ ▸ ARSLAN MDX Command Center
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
