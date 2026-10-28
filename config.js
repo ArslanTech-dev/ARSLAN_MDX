@@ -8,8 +8,8 @@ const isAndroid = os.platform() === 'android';
 // 🚀 SMART DATA DIR LOGIC
 const getDataDir = () => {
   if (process.env.DATA_DIR && process.env.DATA_DIR !== '') return process.env.DATA_DIR;
-  if (isAndroid) return path.join(process.cwd(), 'sessions_data'); // Termux mein permanent save hoga
-  if (isProduction) return '/tmp'; // VPS/Cloud safe storage
+  if (isAndroid) return path.join(process.cwd(), 'sessions_data'); // Termux safe
+  if (isProduction) return '/tmp'; // Cloud safe
   return os.tmpdir(); 
 };
 
