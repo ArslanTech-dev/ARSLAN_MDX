@@ -2,8 +2,8 @@
  * ═══════════════════════════════════════════════════════════════════
  * 🧩 MESSAGE.JS — Ultimate Plugin Router & Event Interceptor
  * ═══════════════════════════════════════════════════════════════════
- * Handles public commands, owner commands, antilink, antidelete, 
- * welcome/goodbye, and anti-call.
+ * Includes: Public/Owner Commands, Antilink, Antidelete, Anticall, 
+ * Welcome/Goodbye, and Anti-Spam Filters.
  */
 
 import fs from 'fs';
@@ -116,6 +116,7 @@ async function handleAntidelete(sock, updates, sessionNumber) {
 
       if (text) {
         await sock.sendMessage(from, { text: `${header}\n${text}\n*╰───────────────⊷*`, mentions: [sender] });
+        logger.info(`[${sessionNumber}] Anti-delete recovered message from ${sender}`);
       }
       messageCache.delete(msgId);
     }
@@ -179,9 +180,7 @@ async function handleGroupParticipants(sock, update, sessionNumber) {
 // ===============================================
 export async function handleMessage(sock, msg, sessionNumber) {
   try {
-    // 1. Load Plugins (sirf pehli baar)
     await loadPlugins();
-
     if (!msg.message) return;
 
     const from = msg.key.remoteJid;
@@ -190,27 +189,21 @@ export async function handleMessage(sock, msg, sessionNumber) {
     const text = extractText(msg);
     const owner = isOwner(sender);
 
-    // Debug Log
-    if (text) {
-      logger.info(`[DEBUG] Msg | fromMe: ${msg.key.fromMe} | sender: ${sender} | text: "${text}"`);
+    // 🚀 SPAM FILTER: Ignore status, newsletters, and lid (temp IDs)
+    if (from === 'status@broadcast' || from.endsWith('@newsletter') || from.endsWith('@lid')) {
+      return;
     }
 
-    // 2. Cache message for Anti-Delete
-    if (from !== 'status@broadcast') {
-      messageCache.set(msg.key.id, { msg, from, sender });
-      if (messageCache.size > 500) messageCache.delete(messageCache.keys().next().value);
-    }
+    // 1. Cache message for Anti-Delete
+    messageCache.set(msg.key.id, { msg, from, sender });
+    if (messageCache.size > 500) messageCache.delete(messageCache.keys().next().value);
 
-    // 🚀 CRITICAL FIX: Owner Commands & Loop Prevention
+    // 2. Owner Commands & Loop Prevention
     if (msg.key.fromMe) {
-      // Agar message bot ne bheja hai (fromMe) aur woh command nahi hai, toh ignore karo
       if (!text || !text.startsWith(CONFIG.PREFIX)) {
-        return;
+        return; // Ignore bot's own normal replies
       }
-      // Agar command hai, toh aage process hone do
     }
-
-    if (from === 'status@broadcast') return;
 
     // 3. Antilink Check
     if (group && text && !owner) {
@@ -220,37 +213,22 @@ export async function handleMessage(sock, msg, sessionNumber) {
 
     if (!text) return;
 
-    // 4. Command Parsing (Dynamic Prefix)
+    // 4. Command Parsing
     const prefix = CONFIG.PREFIX;
-    if (!text.startsWith(prefix)) {
-      if (!msg.key.fromMe) logger.info(`[DEBUG] No prefix. Ignoring.`);
-      return;
-    }
+    if (!text.startsWith(prefix)) return;
 
     const parts = text.slice(prefix.length).trim().split(/\s+/);
     const cmdRaw = parts[0].toLowerCase();
     const args = parts.slice(1);
 
-    logger.info(`[DEBUG] Command: "${cmdRaw}" | Args: [${args.join(', ')}]`);
-
     let plugin = plugins.get(cmdRaw);
     if (!plugin && aliases.has(cmdRaw)) plugin = plugins.get(aliases.get(cmdRaw));
-    
-    if (!plugin) {
-      logger.warn(`[DEBUG] Plugin NOT FOUND for "${cmdRaw}"`);
-      return;
-    }
+    if (!plugin) return;
 
     // 5. Permissions
-    if (plugin.ownerOnly && !owner) {
-      return sock.sendMessage(from, { text: `*╭┈──〔 ACCESS DENIED 〕─⊷*\n*├▢ ❌ Owner Only Command.*\n*╰───────────────⊷*` }, { quoted: msg });
-    }
-    if (plugin.groupOnly && !group) {
-      return sock.sendMessage(from, { text: `*╭┈──〔 GROUP ONLY 〕─⊷*\n*├▢ ❌ Use this in a group.*\n*╰───────────────⊷*` }, { quoted: msg });
-    }
-    if (plugin.privateOnly && group) {
-      return sock.sendMessage(from, { text: `*╭┈──〔 PRIVATE ONLY 〕─⊷*\n*├▢ ❌ Use this in DM.*\n*╰───────────────⊷*` }, { quoted: msg });
-    }
+    if (plugin.ownerOnly && !owner) return;
+    if (plugin.groupOnly && !group) return;
+    if (plugin.privateOnly && group) return;
 
     // 6. Context Builder
     const ctx = {
@@ -271,7 +249,6 @@ export async function handleMessage(sock, msg, sessionNumber) {
       await plugin.run(ctx);
     } catch (err) {
       logger.error(`[DEBUG] Plugin "${plugin.name}" Error:`, err.message);
-      await ctx.reply(`*╭┈──〔 ERROR 〕─⊷*\n*├▢ ❌ ${err.message.slice(0, 100)}\n*╰───────────────⊷*`);
     }
 
   } catch (err) {
@@ -283,7 +260,12 @@ export async function handleMessage(sock, msg, sessionNumber) {
 // ⚙️ EVENT SETUP (Per Session)
 // ===============================================
 export function setupEvents(sock, sessionNumber) {
+  // Group add/remove events (Welcome/Goodbye)
   sock.ev.on('group-participants.update', (u) => handleGroupParticipants(sock, u, sessionNumber));
+
+  // Message delete events (Anti-Delete)
   sock.ev.on('messages.update', (u) => handleAntidelete(sock, u, sessionNumber));
+
+  // Incoming calls (Anti-Call)
   sock.ev.on('call', (c) => handleAntiCall(sock, c, sessionNumber));
 }
