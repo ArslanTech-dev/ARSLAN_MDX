@@ -8,8 +8,7 @@ import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
   makeCacheableSignalKeyStore,
-  fetchLatestWaWebVersion,
-  Browsers // 👈 Import Browsers
+  fetchLatestWaWebVersion
 } from '@whiskeysockets/baileys';
 
 import { Boom } from '@hapi/boom';
@@ -36,9 +35,6 @@ const WELCOME_IMAGE_PATH = path.join(__dirname, 'assets', 'Welcome.png');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// ═══════════════════════════════════════════════════════════════════
-// 🎨 MILITARY-GRADE BANNER
-// ═══════════════════════════════════════════════════════════════════
 function displayBanner() {
   const c = {
     cyan: '\x1b[36m', purple: '\x1b[35m', green: '\x1b[32m',
@@ -65,7 +61,6 @@ ${c.cyan}${V}${c.reset} ${c.yellow}⚡ CORE SYSTEM DIAGNOSTICS${c.reset}        
 ${c.cyan}${V}${c.reset} ${c.green}● ENGINE    :${c.reset} @whiskeysockets/baileys v7 (Official)            ${c.cyan}${V}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.green}● NODE.JS   :${c.reset} ${process.version.padEnd(43)} ${c.cyan}${V}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.green}● PLATFORM  :${c.reset} ${(os.platform() + ' ' + os.arch()).padEnd(43)} ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset} ${c.green}● MEMORY    :${c.reset} ${String(Math.round(os.totalmem() / 1024 / 1024 / 1024) + ' GB Total').padEnd(43)} ${c.cyan}${V}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.green}● STATUS    :${c.reset} ${c.cyan}ONLINE & OPERATIONAL${c.reset}                            ${c.cyan}${V}${c.reset}
 ${c.cyan}${ML}${H.repeat(68)}${MR}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.red}💖 DEDICATION: For Brown Hair Wali (My Everything)${c.reset}              ${c.cyan}${V}${c.reset}
@@ -74,9 +69,6 @@ ${c.cyan}${BL}${H.repeat(68)}${BR}${c.reset}
   console.log(banner);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🚀 BOOT SEQUENCE & AUTO-CONNECT
-// ═══════════════════════════════════════════════════════════════════
 export async function initSessionManager() {
   displayBanner();
   logger.info(`[BOOT] Starting ARSLAN MDX Core...`);
@@ -98,9 +90,6 @@ export async function initSessionManager() {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 📰 CHANNEL FOLLOW & WELCOME
-// ═══════════════════════════════════════════════════════════════════
 async function followChannel(sock, url) {
   try {
     const code = String(url).match(/\/channel\/([A-Za-z0-9]+)/)?.[1];
@@ -135,24 +124,16 @@ async function sendWelcomeMessage(sock, number) {
         });
         logger.success(`🖼️ Welcome Image Sent to: ${number}`);
         await sleep(1000);
-      } catch (imgErr) {
-        logger.error(`Image send failed (${number}):`, imgErr.message);
-      }
+      } catch (imgErr) {}
     }
     await sock.sendMessage(selfJid, { text: CONFIG.WELCOME_MESSAGE });
     logger.success(`📩 Welcome Text Sent to: ${number}`);
-  } catch (err) {
-    logger.error(`Welcome message failed (${number}):`, err.message);
-  }
+  } catch (err) {}
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🤖 CORE — START BOT (ULTRA STRONG PAIRING)
-// ═══════════════════════════════════════════════════════════════════
 export async function startBotForUser(number, isNew = false) {
   if (activeSessions.has(number)) return activeSessions.get(number);
-  if (activeSessions.size >= CONFIG.MAX_SESSIONS) throw new Error(`Max sessions reached.`);
-
+  
   const { state, saveCreds } = await useMultiFileAuthState(getSessionPath(number));
   const { version } = await fetchLatestWaWebVersion();
 
@@ -164,10 +145,10 @@ export async function startBotForUser(number, isNew = false) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
     },
-    // 🚀 SAFARI MACOS FIX
-    browser: Browsers.macOS('Safari'), 
+    // 🚀 ANTI-BOT BYPASS: Fake Ubuntu Device
+    browser: ['Ubuntu', 'Chrome', '120.0.0.0'], 
     generateHighQualityLinkPreview: true,
-    markOnlineOnConnect: false,
+    markOnlineOnConnect: true, // 👈 Important for staying online
     syncFullHistory: false,
     connectTimeoutMs: 60_000,
     defaultQueryTimeoutMs: 60_000,
@@ -183,37 +164,23 @@ export async function startBotForUser(number, isNew = false) {
   let pairingRequested = false;
   let pairingReady = false;
 
-  // 🚀 PAIR-DEVICE EVENT
   sock.ev.on('pair-device', () => {
     logger.info(`[Pairing] Server is ready for pairing code.`);
     pairingReady = true;
   });
 
-  // 📩 MESSAGE RECEIVER
   sock.ev.on('messages.upsert', async (m) => {
     for (const msg of m.messages) {
       if (!msg.message) continue; 
-      
-      const from = msg.key.remoteJid;
-      const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
-      
-      if (text && !msg.key.fromMe) {
-        logger.info(`[EVENT] Type: ${m.type} | fromMe: ${msg.key.fromMe} | text: "${text}"`);
-      }
-      
       try {
         await handleMessage(sock, msg, number);
-      } catch (err) {
-        logger.error(`Handler error (${number}):`, err.message);
-      }
+      } catch (err) {}
     }
   });
 
-  // 🔄 CONNECTION UPDATES
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    // 🚀 PAIRING CODE GENERATION
     if (qr && pendingPairings.has(number) && !sock.authState.creds.registered && !pairingRequested) {
       pairingRequested = true;
       const pending = pendingPairings.get(number);
@@ -223,10 +190,8 @@ export async function startBotForUser(number, isNew = false) {
           logger.info(`[Pairing] Waiting for server readiness...`);
           await sleep(3000);
         }
-        
         const raw = await sock.requestPairingCode(number);
         const code = formatPairingCode(raw);
-        
         logger.success(`\n🔐 [PAIRING] Code: ${code}\n`);
         pending.resolve(code);
       } catch (err) {
@@ -238,7 +203,6 @@ export async function startBotForUser(number, isNew = false) {
       }
     }
 
-    // ✅ CONNECTED
     if (connection === 'open') {
       hasOpenedOnce = true;
       logger.success(`\n✅ [SESSION OPEN] ${number} is now connected!\n`);
@@ -253,7 +217,6 @@ export async function startBotForUser(number, isNew = false) {
       await followAllChannels(sock);
     }
 
-    // ❌ DISCONNECTED
     if (connection === 'close') {
       const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
       activeSessions.delete(number);
@@ -285,7 +248,6 @@ export async function startBotForUser(number, isNew = false) {
           pending.reject(new Error('Pairing failed. Generate a new code.'));
           pendingPairings.delete(number);
         }
-        logger.warn(`[Pairing] ${number} never opened (code ${code}).`);
         return;
       }
 
@@ -297,9 +259,6 @@ export async function startBotForUser(number, isNew = false) {
   return sock;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🔐 CREATE PAIRING CODE
-// ═══════════════════════════════════════════════════════════════════
 export async function createPairingCode(number) {
   if (!activeSessions.has(number)) await deleteSession(number);
   return new Promise((resolve, reject) => {
@@ -312,9 +271,6 @@ export async function createPairingCode(number) {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🗑️ UNPAIR (Ab yeh maujood hai)
-// ═══════════════════════════════════════════════════════════════════
 export async function unpairUser(number) {
   const sock = activeSessions.get(number);
   try {
@@ -325,17 +281,12 @@ export async function unpairUser(number) {
     }
     await deleteSession(number);
     await removeUser(number);
-    logger.warn(`🗑️ Unpaired: ${number}`);
     return true;
   } catch (err) {
-    logger.error(`Unpair failed (${number}):`, err.message);
     return false;
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 📊 GET SESSION LIST (Ab yeh bhi maujood hai)
-// ═══════════════════════════════════════════════════════════════════
 export function getSessionList() {
   const out = [];
   for (const [number, sock] of activeSessions.entries()) {
