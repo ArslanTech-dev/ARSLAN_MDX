@@ -3,13 +3,13 @@ import os from 'os';
 import 'dotenv/config';
 
 const isProduction = process.env.NODE_ENV === 'production';
-const isAndroid = os.platform() === 'android'; // 👈 Check for Termux
+const isAndroid = os.platform() === 'android';
 
 // 🚀 SMART DATA DIR LOGIC
 const getDataDir = () => {
-  if (process.env.DATA_DIR) return process.env.DATA_DIR;
-  if (isAndroid) return os.tmpdir(); // Agar Termux hai, toh safe folder use karo
-  if (isProduction) return '/tmp';
+  if (process.env.DATA_DIR && process.env.DATA_DIR !== '') return process.env.DATA_DIR;
+  if (isAndroid) return path.join(process.cwd(), 'sessions_data'); // Termux mein permanent save hoga
+  if (isProduction) return '/tmp'; // VPS/Cloud safe storage
   return os.tmpdir(); 
 };
 
@@ -35,7 +35,6 @@ export const CONFIG = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
   UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY || '',
 
-  // 🖼️ WELCOME MESSAGES
   WELCOME_IMAGE_CAPTION: `⚡ *ARSLAN MDX* ⚡\n> _Advanced Multi-User Core Online_\n\n🛡️ _Enterprise-Grade Security Active._`,
 
   WELCOME_MESSAGE: `
