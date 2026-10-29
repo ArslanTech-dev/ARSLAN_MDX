@@ -8,7 +8,8 @@ import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
   makeCacheableSignalKeyStore,
-  fetchLatestWaWebVersion
+  fetchLatestWaWebVersion,
+  Browsers // 👈 Import Browsers
 } from '@whiskeysockets/baileys';
 
 import { Boom } from '@hapi/boom';
@@ -145,10 +146,10 @@ export async function startBotForUser(number, isNew = false) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
     },
-    // 🚀 ANTI-BOT BYPASS: Fake Ubuntu Device
-    browser: ['Ubuntu', 'Chrome', '120.0.0.0'], 
+    // 🚀 FIX: MACOS Platform (405 error bypass)
+    browser: Browsers.macOS('Safari'), 
     generateHighQualityLinkPreview: true,
-    markOnlineOnConnect: true, // 👈 Important for staying online
+    markOnlineOnConnect: true, 
     syncFullHistory: false,
     connectTimeoutMs: 60_000,
     defaultQueryTimeoutMs: 60_000,
@@ -164,6 +165,7 @@ export async function startBotForUser(number, isNew = false) {
   let pairingRequested = false;
   let pairingReady = false;
 
+  // 🚀 READINESS GATE: Wait for pair-device event
   sock.ev.on('pair-device', () => {
     logger.info(`[Pairing] Server is ready for pairing code.`);
     pairingReady = true;
@@ -186,10 +188,12 @@ export async function startBotForUser(number, isNew = false) {
       const pending = pendingPairings.get(number);
       
       try {
+        // Wait for socket stabilization if not ready
         if (!pairingReady) {
           logger.info(`[Pairing] Waiting for server readiness...`);
           await sleep(3000);
         }
+        
         const raw = await sock.requestPairingCode(number);
         const code = formatPairingCode(raw);
         logger.success(`\n🔐 [PAIRING] Code: ${code}\n`);
@@ -222,12 +226,14 @@ export async function startBotForUser(number, isNew = false) {
       activeSessions.delete(number);
       sessionStatus.delete(number);
 
+      // 405: Method Not Allowed (Platform rejection) - Abort
       if (code === 405) {
         logger.error(`⚠️ [405] Method Not Allowed for ${number}. Aborting.`);
         await deleteSession(number);
         return;
       }
 
+      // 401: Logged Out - Delete session, no reconnect
       if (code === DisconnectReason.loggedOut) {
         await deleteSession(number);
         await removeUser(number);
@@ -235,12 +241,14 @@ export async function startBotForUser(number, isNew = false) {
         return;
       }
 
+      // 515: Pairing Accepted - Reconnect
       if (code === 515) {
         logger.info(`🔄 [515] Pairing accepted. Reconnecting...`);
         setTimeout(() => { startBotForUser(number, false).catch(() => {}); }, 3000);
         return;
       }
 
+      // If never opened (pairing failed)
       if (!hasOpenedOnce) {
         await deleteSession(number);
         const pending = pendingPairings.get(number);
@@ -248,9 +256,11 @@ export async function startBotForUser(number, isNew = false) {
           pending.reject(new Error('Pairing failed. Generate a new code.'));
           pendingPairings.delete(number);
         }
+        logger.warn(`[Pairing] ${number} never opened (code ${code}).`);
         return;
       }
 
+      // Normal reconnect
       logger.info(`🔄 Reconnecting ${number} in 3s...`);
       setTimeout(() => { startBotForUser(number, false).catch(() => {}); }, 3000);
     }
