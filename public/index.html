@@ -1,705 +1,784 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
-  <title>ARSLAN MDX • Terminal Control</title>
-  <meta name="theme-color" content="#030712">
-  
-  <!-- Fonts & Icons -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="theme-color" content="#050713">
+  <meta name="description" content="ARSLAN MDX - Premium WhatsApp Bot Pairing Portal.">
+  <title>ARSLAN MDX • Pairing Portal</title>
+
+  <!-- Fonts: Inter + Orbitron -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 
   <style>
     /* ═══════════════════════════════════════════════════════════
-       🎨 THEME VARIABLES
+       🎨 CORE THEME VARIABLES
        ═══════════════════════════════════════════════════════════ */
     :root {
-      --bg: #030712;
-      --bg-alt: #080c17;
-      --panel: rgba(15, 23, 42, 0.6);
-      --panel-border: rgba(139, 92, 246, 0.2);
-      --text: #f8fafc;
-      --muted: #94a3b8;
-      
-      --purple: #8b5cf6;
-      --cyan: #06b6d4;
-      --green: #22c55e;
-      --red: #ef4444;
-      --yellow: #eab308;
-      --pink: #ec4899;
-      
-      --font-ui: 'Plus Jakarta Sans', sans-serif;
-      --font-mono: 'JetBrains Mono', monospace;
+      font-family: Inter, system-ui, sans-serif;
+      color: #f7f9ff;
+      background: #03050c;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
     }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
-      font-family: var(--font-ui); background-color: var(--bg); color: var(--text);
-      min-height: 100vh; display: flex; overflow-x: hidden;
-      -webkit-font-smoothing: antialiased;
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(circle at 75% 8%, rgba(0,90,255,.19), transparent 28%),
+        radial-gradient(circle at 15% 35%, rgba(50,0,255,.12), transparent 25%),
+        #03050c;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    a { color: inherit; text-decoration: none; }
+
+    .app { position: relative; overflow: hidden; min-height: 100vh; }
+
+    /* ═══ Noise Overlay ═══ */
+    .noise {
+      position: fixed; inset: 0; pointer-events: none; opacity: .045;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.6'/%3E%3C/svg%3E");
+      z-index: 10;
     }
 
-    /* ═══════════════════════════════════════════════════════════
-       🚀 1. PRELOADER (BIOS Boot)
-       ═══════════════════════════════════════════════════════════ */
-    #boot-screen {
-      position: fixed; inset: 0; z-index: 999999;
-      background: #000; color: var(--green);
-      font-family: var(--font-mono); font-size: 12px; line-height: 1.5;
-      padding: 15px; display: flex; flex-direction: column;
-      justify-content: flex-end; overflow: hidden; transition: opacity 0.6s ease;
+    /* ═══ Navbar ═══ */
+    .nav, main, footer { width: min(1180px, calc(100% - 36px)); margin: auto; }
+    .nav {
+      height: 82px; display: flex; align-items: center; justify-content: space-between;
+      position: relative; z-index: 2;
     }
-    .boot-header {
-      position: absolute; top: 15px; left: 15px; right: 15px;
+    .brand { display: flex; align-items: center; gap: 11px; }
+    .brand-mark {
+      width: 42px; height: 42px; display: grid; place-items: center;
+      border: 1px solid rgba(54,137,255,.7);
+      background: linear-gradient(145deg,#061b46,#080a19);
+      box-shadow: 0 0 24px #0065ff4d; color: #30a4ff; border-radius: 12px;
+    }
+    .brand b { display: block; font-family: Orbitron, sans-serif; letter-spacing: .15em; font-size: 14px; }
+    .brand small { display: block; color: #68789d; font-size: 8px; letter-spacing: .22em; margin-top: 3px; }
+
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .music-btn {
+      display: flex; align-items: center; gap: 8px;
+      border: 1px solid rgba(90,120,180,.2);
+      background: #070c1cb8; border-radius: 999px;
+      padding: 10px 14px; color: #9ba8c5; font-size: 10px; letter-spacing: .13em;
+      transition: 0.2s;
+    }
+    .music-btn:hover { color: #fff; border-color: rgba(90,120,180,.5); }
+    .nav-pill {
+      display: flex; align-items: center; gap: 9px;
+      color: #9ba8c5; font-size: 10px; letter-spacing: .13em;
+      border: 1px solid rgba(90,120,180,.2);
+      background: #070c1cb8; border-radius: 999px; padding: 10px 14px;
+    }
+    .live-dot, .server-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #27e6a2; box-shadow: 0 0 12px #27e6a2;
+    }
+
+    /* ═══ Hero Banner (Custom Image) ═══ */
+    .hero {
+      margin-top: 20px;
+      position: relative;
+      z-index: 2;
+    }
+    .hero-banner {
+      position: relative;
+      width: 100%;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(139, 92, 246, 0.15);
+      background: #050a17; /* Fallback if image is loading */
+    }
+    .hero-banner img {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: cover;
+    }
+
+    /* ═══ Dashboard Grid ═══ */
+    .dashboard-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 18px; position: relative; z-index: 2; margin-top: 20px;
+    }
+    .glass {
+      border: 1px solid rgba(83,129,211,.18);
+      background: linear-gradient(145deg,#0b132ad1,#040814db);
+      box-shadow: inset 0 1px #ffffff09,0 25px 70px #00000047;
+      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(18px);
+    }
+    .pair-card, .status-card { border-radius: 22px; padding: 25px; }
+    .card-heading {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .card-heading h2, .section-title h2 {
+      margin: 7px 0 0; font-family: Orbitron, sans-serif; font-size: 22px;
+    }
+    .mini-label {
+      display: inline-flex; align-items: center; gap: 8px;
+      color: #38aaff; font-family: Orbitron, sans-serif;
+      font-size: 10px; letter-spacing: .16em;
+    }
+    .icon-box {
+      width: 42px; height: 42px; display: grid; place-items: center;
+      border-radius: 12px; color: #2da7ff;
+      background: #1a6fff1a; border: 1px solid rgba(52,140,255,.22);
+    }
+
+    /* ═══ Form ═══ */
+    .muted { color: #7583a2; font-size: 12px; line-height: 1.7; margin: 17px 0 22px; }
+    .muted b { color: #b9c6e1; }
+    label { display: block; color: #aebbd7; font-size: 11px; font-weight: 600; margin-bottom: 8px; }
+    .input-wrap {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 14px; height: 53px; border-radius: 13px;
+      background: #050a17; border: 1px solid rgba(73,115,186,.22); transition: .2s;
+    }
+    .input-wrap:focus-within { border-color: #2596ffbf; box-shadow: 0 0 0 4px #1474ff12; }
+    .input-wrap > span { color: #318eff; font-weight: 700; }
+    .input-wrap input {
+      border: 0; outline: 0; background: transparent;
+      color: #fff; width: 100%; font-size: 15px; letter-spacing: .06em;
+    }
+    .input-wrap input::placeholder { color: #3e4b67; }
+
+    .primary-btn {
+      width: 100%; border: 0; height: 52px; margin-top: 14px;
+      border-radius: 13px; color: #fff; font-weight: 800;
+      font-size: 11px; letter-spacing: .12em;
+      background: linear-gradient(100deg,#0877ff,#334eff 50%,#812eff);
+      box-shadow: 0 12px 35px #205bff38;
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      transition: .2s;
+    }
+    .primary-btn:hover:not(:disabled) {
+      transform: translateY(-2px); box-shadow: 0 16px 45px #205bff59;
+    }
+    .primary-btn:disabled { opacity: .65; cursor: wait; }
+
+    /* ═══ Code Result ═══ */
+    .code-result {
+      display: none; align-items: center; justify-content: space-between;
+      gap: 15px; margin-top: 17px; padding: 17px;
+      border: 1px solid rgba(40,161,255,.24);
+      background: linear-gradient(135deg,#006fff17,#6923ff14);
+      border-radius: 15px;
+    }
+    .code-result span, .code-result small {
+      display: block; color: #7385a9; font-size: 8px; letter-spacing: .16em;
+    }
+    .code-result strong {
+      display: block; margin: 6px 0; color: #fff;
+      font-family: Orbitron, sans-serif; font-size: 24px; letter-spacing: .18em;
+    }
+    .copy-btn, .refresh-btn {
+      border: 1px solid rgba(67,143,255,.25);
+      background: #112d5a59; color: #6bbcff;
+      border-radius: 10px; padding: 10px 12px;
+      display: flex; align-items: center; gap: 7px;
+      font-size: 9px; font-weight: 800; letter-spacing: .08em;
+      transition: 0.2s;
+    }
+    .copy-btn:hover, .refresh-btn:hover {
+      border-color: #438fffb3; background: #124c9659;
+    }
+
+    /* ═══ Server Status ═══ */
+    .status-main {
+      margin-top: 23px; padding: 16px; border-radius: 15px;
+      background: #070e1eb3; border: 1px solid rgba(64,98,155,.15);
+      display: grid; grid-template-columns: 45px 1fr auto;
+      align-items: center; gap: 12px;
+    }
+    .online-icon {
+      width: 45px; height: 45px; display: grid; place-items: center;
+      border-radius: 12px; color: #36e2a2; background: #19da9a14;
+    }
+    .status-main b { display: block; font-size: 12px; }
+    .status-main span { display: block; color: #65738f; font-size: 9px; margin-top: 4px; }
+    .status-main > strong { color: #40e7aa; font-size: 20px; }
+
+    .stats {
+      display: grid; grid-template-columns: repeat(3,1fr);
+      gap: 8px; margin: 12px 0;
+    }
+    .stats div {
+      padding: 12px; border: 1px solid rgba(66,99,151,.12);
+      border-radius: 11px; background: #060a1680;
+    }
+    .stats span { display: block; color: #5d6c88; font-size: 9px; }
+    .stats b { display: block; font-family: Orbitron, sans-serif; font-size: 16px; margin-top: 5px; }
+
+    .capacity { margin: 14px 0; }
+    .capacity-top {
       display: flex; justify-content: space-between;
-      color: #475569; border-bottom: 1px solid #1e293b; padding-bottom: 8px;
-      font-size: 11px;
+      color: #697893; font-size: 9px; margin-bottom: 7px;
     }
-    #boot-logs { max-height: 75vh; overflow-y: hidden; }
-    .boot-log { margin-bottom: 4px; opacity: 0; transform: translateY(5px); animation: fadeInLog 0.2s forwards; word-wrap: break-word; }
-    .boot-log .b-time { color: #475569; margin-right: 5px; }
-    .boot-log .b-ok { color: var(--green); font-weight: bold; }
-    .boot-log .b-info { color: var(--cyan); font-weight: bold; }
-    @keyframes fadeInLog { to { opacity: 1; transform: translateY(0); } }
-    
-    .boot-cursor { width: 7px; height: 12px; background: var(--green); animation: blink 1s step-end infinite; display: inline-block; margin-left: 3px; vertical-align: middle; }
-    @keyframes blink { 50% { opacity: 0; } }
-
-    .boot-progress { position: absolute; bottom: 0; left: 0; height: 2px; background: var(--green); width: 0%; transition: width 0.2s; box-shadow: 0 0 15px var(--green); }
-
-    /* ═══════════════════════════════════════════════════════════
-       📐 LAYOUT (Mobile First)
-       ═══════════════════════════════════════════════════════════ */
-    .sidebar {
-      position: fixed; top: 0; left: -280px; width: 260px; height: 100vh;
-      background: var(--bg-alt); border-right: 1px solid rgba(255,255,255,0.05);
-      display: flex; flex-direction: column; z-index: 1000; transition: left 0.3s ease;
+    .capacity-top b { color: #8092b3; }
+    .progress {
+      height: 5px; border-radius: 20px; background: #111a2d; overflow: hidden;
     }
-    .sidebar.open { left: 0; box-shadow: 5px 0 30px rgba(0,0,0,0.8); }
-    
-    .sidebar-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; 
-      display: none; backdrop-filter: blur(2px);
+    .progress span {
+      display: block; height: 100%; border-radius: inherit;
+      background: linear-gradient(90deg,#1597ff,#8244ff);
+      box-shadow: 0 0 13px #347cff;
     }
-    .sidebar-overlay.show { display: block; }
 
-    .brand { padding: 20px; display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .brand-logo { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--purple), var(--cyan)); display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; }
-    
-    .nav-menu { padding: 15px 10px; flex: 1; display: flex; flex-direction: column; gap: 5px; }
-    .nav-item {
-      display: flex; align-items: center; gap: 12px; padding: 12px 15px;
-      color: var(--muted); font-size: 14px; font-weight: 600; border-radius: 8px;
-      cursor: pointer; transition: 0.2s; border: none; background: transparent; width: 100%; text-align: left;
+    /* ═══ Server List ═══ */
+    .server-list { max-height: 172px; overflow: auto; padding-right: 4px; }
+    .server-list::-webkit-scrollbar { width: 4px; }
+    .server-list::-webkit-scrollbar-thumb { background: #1a2d4d; border-radius: 4px; }
+    .server-row {
+      display: grid; grid-template-columns: 1fr auto auto;
+      align-items: center; gap: 10px; padding: 9px 2px;
+      border-bottom: 1px solid rgba(67,95,143,.1);
+      color: #7d8aa5; font-size: 9px;
     }
-    .nav-item:hover, .nav-item.active { color: white; background: rgba(139, 92, 246, 0.15); }
-    .nav-item i { width: 20px; text-align: center; }
-    
-    .sidebar-footer { padding: 15px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 11px; color: var(--muted); text-align: center; }
+    .server-name { display: flex; align-items: center; gap: 8px; color: #aab6cc; }
+    .server-row b { font-size: 8px; }
+    .available { color: #3fe0a3; }
+    .full { color: #ff6b6b; }
 
-    /* Main Content */
-    .main-content { flex: 1; display: flex; flex-direction: column; width: 100%; position: relative; }
-    
-    /* Topbar */
-    .topbar {
-      height: 60px; border-bottom: 1px solid rgba(255,255,255,0.05);
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 15px; background: var(--bg); position: sticky; top: 0; z-index: 100;
+    /* ═══ How It Works ═══ */
+    .how { padding: 80px 0 35px; }
+    .section-title { text-align: center; }
+    .section-title .mini-label { justify-content: center; }
+    .steps {
+      display: grid; grid-template-columns: repeat(3,1fr);
+      gap: 15px; margin-top: 28px;
     }
-    .menu-btn { background: transparent; border: none; color: var(--text); font-size: 20px; padding: 5px; cursor: pointer; }
-    
-    .live-ticker { display: none; /* Mobile pe hide */ }
-    
-    .sys-status { display: flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 10px; color: var(--green); background: rgba(34, 197, 94, 0.1); padding: 4px 8px; border-radius: 20px; border: 1px solid rgba(34, 197, 94, 0.2); }
-    .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
-
-    /* Scrollable Area */
-    .content-area { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 80px; background-image: radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.03) 0%, transparent 50%); }
-    .tab-page { display: none; animation: fadeIn 0.3s ease; }
-    .tab-page.active { display: block; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* ═══════════════════════════════════════════════════════════
-       🧩 COMPONENTS
-       ═══════════════════════════════════════════════════════════ */
-    .grid-2 { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
-    
-    .panel { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px); }
-    .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); }
-    .panel-title { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--cyan); display: flex; align-items: center; gap: 6px; }
-    .panel-body { padding: 15px; }
-
-    /* Forms */
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; font-family: var(--font-mono); font-size: 10px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; }
-    .form-control { width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; font-family: var(--font-ui); font-size: 14px; outline: none; transition: 0.3s; }
-    .form-control:focus { border-color: var(--purple); box-shadow: 0 0 15px rgba(139, 92, 246, 0.2); }
-    select.form-control { font-family: var(--font-mono); cursor: pointer; }
-
-    .btn-primary { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--purple), #6d28d9); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.3s; }
-    .btn-primary:active { transform: scale(0.98); }
-    .btn-primary:disabled { opacity: 0.6; }
-
-    /* Code Result */
-    .code-box { display: none; margin-top: 15px; padding: 15px; background: rgba(6, 182, 212, 0.05); border: 1px solid var(--cyan); border-radius: 8px; text-align: center; }
-    .code-box.show { display: block; animation: fadeIn 0.4s; }
-    .code-val { font-family: var(--font-mono); font-size: 28px; font-weight: 700; color: var(--cyan); letter-spacing: 4px; text-shadow: 0 0 15px rgba(6, 182, 212, 0.4); }
-
-    /* ═══════════════════════════════════════════════════════════
-       💻 ADVANCED TERMINAL
-       ═══════════════════════════════════════════════════════════ */
-    .terminal-container {
-      background: #050505; border-radius: 8px; border: 1px solid #1e293b;
-      height: 260px; display: flex; flex-direction: column; overflow: hidden;
+    .step {
+      border-radius: 17px; padding: 24px; position: relative; min-height: 170px;
     }
-    .term-header { background: #0f172a; padding: 6px 10px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #1e293b; }
-    .term-dot { width: 8px; height: 8px; border-radius: 50%; }
-    .term-dot.red { background: #ff5f56; }
-    .term-dot.yellow { background: #ffbd2e; }
-    .term-dot.green { background: #27c93f; }
-    .term-title { font-family: var(--font-mono); font-size: 10px; color: #64748b; margin-left: auto; margin-right: auto; }
-
-    .term-body { padding: 10px; overflow-y: auto; flex: 1; font-family: var(--font-mono); font-size: 11px; display: flex; flex-direction: column; gap: 4px; }
-    .term-line { display: flex; gap: 6px; line-height: 1.3; flex-wrap: wrap; }
-    .t-time { color: #475569; flex-shrink: 0; }
-    .t-ok { color: var(--green); font-weight: bold; }
-    .t-err { color: var(--red); font-weight: bold; }
-    .t-info { color: var(--cyan); font-weight: bold; }
-    .t-warn { color: var(--yellow); font-weight: bold; }
-    .t-saba { color: var(--pink); font-weight: bold; }
-    .t-txt { color: #cbd5e1; word-break: break-word; }
-
-    .term-input-line { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid #1e293b; background: #000; align-items: center; }
-    .term-prompt { color: var(--green); font-weight: bold; font-family: var(--font-mono); font-size: 11px; }
-    .term-input { background: transparent; border: none; color: white; font-family: var(--font-mono); font-size: 12px; outline: none; flex: 1; }
-    .term-cursor { width: 6px; height: 12px; background: var(--green); animation: blink 1s step-end infinite; }
-
-    /* Sessions */
-    .session-item { display: flex; flex-direction: column; gap: 10px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
-    .session-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-    .session-info-mob { display: flex; align-items: center; gap: 10px; }
-    .avatar { width: 36px; height: 36px; border-radius: 8px; background: rgba(139, 92, 246, 0.2); border: 1px solid var(--purple); display: flex; align-items: center; justify-content: center; color: var(--purple); font-weight: 800; font-family: var(--font-mono); font-size: 12px; }
-    .btn-unpair { width: 100%; background: transparent; color: var(--red); border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
-    .btn-unpair:active { background: rgba(239, 68, 68, 0.1); }
-
-    /* Network Grid */
-    .servers-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .server-card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 8px; padding: 10px; }
-    .s-name { font-family: var(--font-mono); font-size: 12px; font-weight: 700; margin-bottom: 4px; }
-    .s-status { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-block; }
-    .s-on { background: rgba(34,197,94,0.1); color: var(--green); }
-
-    /* ═══════════════════════════════════════════════════════════
-       📱 BOTTOM NAVIGATION
-       ═══════════════════════════════════════════════════════════ */
-    .bottom-nav {
-      position: fixed; bottom: 0; left: 0; right: 0; height: 60px;
-      background: var(--bg-alt); border-top: 1px solid rgba(255,255,255,0.05);
-      display: flex; justify-content: space-around; align-items: center;
-      z-index: 100; padding-bottom: env(safe-area-inset-bottom);
+    .step > span {
+      position: absolute; top: 17px; right: 19px;
+      color: #314463; font-family: Orbitron, sans-serif; font-size: 10px;
     }
-    .bn-item {
-      display: flex; flex-direction: column; align-items: center; gap: 3px;
-      color: var(--muted); font-size: 9px; font-weight: 600; text-transform: uppercase;
-      background: transparent; border: none; cursor: pointer; padding: 5px;
+    .step svg { color: #299cff; margin-bottom: 12px; }
+    .step h3 { margin: 0 0 7px; font-size: 14px; }
+    .step p { margin: 0; color: #687792; font-size: 11px; line-height: 1.7; }
+
+    /* ═══ Community Banner (Bottom) ═══ */
+    .inc-banner {
+      margin: 20px 0 75px;
+      border-radius: 22px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #050a17;
+      border: 1px solid rgba(83,129,211,.18);
+      box-shadow: inset 0 1px #ffffff09,0 25px 70px #00000047;
+      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(18px);
     }
-    .bn-item i { font-size: 18px; }
-    .bn-item.active { color: var(--purple); }
-    .bn-item.active i { text-shadow: 0 0 10px rgba(139, 92, 246, 0.5); }
+    .inc-banner img {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: cover;
+    }
 
-    /* Matrix Canvas */
-    #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.1; pointer-events: none; }
+    /* ═══ Footer ═══ */
+    footer {
+      border-top: 1px solid rgba(67,95,143,.14);
+      padding: 24px 0 30px;
+      display: flex; justify-content: space-between;
+      align-items: center; color: #4e5c75; font-size: 9px;
+    }
+    footer b {
+      color: #8c9ab7; font-family: Orbitron, sans-serif;
+      letter-spacing: .12em; margin-right: 13px;
+    }
+    .socials { display: flex; gap: 9px; }
+    .socials a {
+      width: 34px; height: 34px; display: grid; place-items: center;
+      border-radius: 9px; border: 1px solid rgba(69,104,159,.16);
+      color: #637594; transition: 0.2s;
+    }
+    .socials a:hover { color: #fff; border-color: rgba(69,104,159,.5); }
 
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: #000; }
-    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+    /* ═══ Loading Screen (Initialization) ═══ */
+    .loading-screen {
+      position: fixed; inset: 0; z-index: 99999;
+      display: flex; align-items: center; justify-content: center;
+      padding: 22px;
+      background: radial-gradient(circle at 50% 47%,rgba(22,101,255,.1),transparent 25%),#02050d;
+      animation: loadingFadeOut .8s ease 3.2s forwards;
+    }
+    .loading-inner {
+      width: min(100%,560px); min-height: 520px;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; position: relative;
+    }
+    .loader-scene {
+      width: 190px; height: 190px; position: relative;
+      display: grid; place-items: center;
+      filter: drop-shadow(0 0 24px rgba(36,139,255,.18));
+    }
+    .loader-scene:before, .loader-scene:after {
+      content: ""; position: absolute; border-radius: 50%; pointer-events: none;
+    }
+    .loader-scene:before {
+      inset: 23px; border: 1px dashed rgba(78,157,255,.28);
+      animation: loaderSpinReverse 9s linear infinite;
+    }
+    .loader-scene:after {
+      inset: 45px; border: 1px solid rgba(120,83,255,.28);
+      box-shadow: 0 0 35px #377eff1f inset;
+      animation: loaderSpin 5s linear infinite;
+    }
+    .loader-halo {
+      position: absolute; inset: 38px; border-radius: 50%; pointer-events: none;
+    }
+    .halo-one {
+      background: #147eff21; filter: blur(28px);
+      animation: loaderHalo 1.8s ease-in-out infinite;
+    }
+    .halo-two {
+      inset: 62px; background: #7046ff29; filter: blur(18px);
+      animation: loaderHalo 1.8s ease-in-out .4s infinite reverse;
+    }
+    .loader-ring {
+      position: absolute; border-radius: 50%;
+      border-style: solid; pointer-events: none;
+    }
+    .ring-one {
+      inset: 5px; border-width: 2px;
+      border-color: rgba(44,157,255,.15) rgba(44,157,255,.9) rgba(127,70,255,.75) transparent;
+      animation: loaderSpin 2.1s linear infinite;
+    }
+    .ring-two {
+      inset: 16px; border-width: 1px;
+      border-color: transparent rgba(111,83,255,.85) rgba(38,164,255,.5) transparent;
+      animation: loaderSpinReverse 1.7s linear infinite;
+    }
+    .ring-three {
+      inset: 31px; border-width: 2px;
+      border-color: rgba(255,255,255,.16) transparent transparent rgba(55,158,255,.75);
+      animation: loaderSpin 3.3s linear infinite;
+    }
+    .loader-sweep {
+      position: absolute; inset: 8px; border-radius: 50%;
+      background: conic-gradient(from 0deg,transparent 0deg,rgba(41,155,255,.34) 28deg,transparent 58deg,transparent 360deg);
+      -webkit-mask: radial-gradient(circle,transparent 0 48%,#000 49% 51%,transparent 52%);
+      mask: radial-gradient(circle,transparent 0 48%,#000 49% 51%,transparent 52%);
+      animation: loaderSpin 2.6s linear infinite;
+    }
+    .loader-core {
+      width: 72px; height: 72px; display: grid; place-items: center;
+      border-radius: 50%; color: #5bb8ff;
+      border: 1px solid rgba(65,158,255,.48);
+      background: radial-gradient(circle at 35% 30%,#339eff33,#040a18f2 70%);
+      box-shadow: 0 0 0 7px #2b8eff0b,0 0 25px #2a91ff47,inset 0 0 22px #3491ff1c;
+      animation: corePulse 1.7s ease-in-out infinite;
+    }
+    .loading-title {
+      margin-top: 48px; width: min(100%,500px); min-height: 58px;
+      text-align: center; font-family: Orbitron, sans-serif;
+      font-size: clamp(15px,3vw,23px); font-weight: 700;
+      line-height: 1.45; letter-spacing: .07em;
+      background: linear-gradient(90deg,#fff,#38aaff,#8b4dff);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      animation: loadingTextIn .7s ease both;
+    }
+    .loading-progress {
+      width: min(360px,82%); height: 4px; margin-top: 25px;
+      border-radius: 10px; overflow: hidden; background: #ffffff14;
+      box-shadow: inset 0 0 0 1px #ffffff06;
+    }
+    .loading-progress span {
+      display: block; height: 100%; width: 0;
+      background: linear-gradient(90deg,#168dff,#8148ff);
+      box-shadow: 0 0 15px #3691ffa6;
+      animation: loadingProgress 3s linear forwards;
+    }
+    .loading-card-footer {
+      margin-top: 21px; display: flex; align-items: center; gap: 8px;
+      color: #556783; font-size: 8px; letter-spacing: .16em; font-weight: 700;
+    }
+    .loading-status-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #2aa6ff; box-shadow: 0 0 11px #2aa6ffcc;
+      animation: statusPulse 1.2s ease-in-out infinite;
+    }
 
-    /* Desktop Upgrades */
-    @media (min-width: 768px) {
-      .sidebar { position: sticky; left: 0; }
-      .bottom-nav { display: none; }
-      .menu-btn { display: none; }
-      .main-content { height: 100vh; overflow: hidden; }
-      .content-area { padding: 30px; padding-bottom: 30px; }
-      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-      .live-ticker { display: flex; align-items: center; gap: 15px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); background: rgba(0,0,0,0.3); padding: 8px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
-      .terminal-container { height: 350px; }
-      .session-item { flex-direction: row; justify-content: space-between; align-items: center; }
-      .session-header { width: auto; }
-      .btn-unpair { width: auto; padding: 6px 12px; }
-      .servers-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+    /* ═══ Animations ═══ */
+    @keyframes loaderSpin { to { transform: rotate(360deg); } }
+    @keyframes loaderSpinReverse { to { transform: rotate(-360deg); } }
+    @keyframes loaderHalo {
+      0%, to { opacity: .55; transform: scale(.92); }
+      50% { opacity: 1; transform: scale(1.08); }
+    }
+    @keyframes corePulse {
+      0%, to { transform: scale(.96); box-shadow: 0 0 0 7px #2b8eff0b,0 0 25px #2a91ff47,inset 0 0 22px #3491ff1c; }
+      50% { transform: scale(1.04); box-shadow: 0 0 0 10px #2b8eff14,0 0 35px #2a91ff66,inset 0 0 26px #3491ff2b; }
+    }
+    @keyframes loadingTextIn { from { opacity: 0; transform: translateY(14px); } }
+    @keyframes loadingProgress { to { width: 100%; } }
+    @keyframes statusPulse { 50% { opacity: .4; } }
+    @keyframes loadingFadeOut { to { opacity: 0; visibility: hidden; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 1s linear infinite; }
+
+    /* ═══ Responsive ═══ */
+    @media (max-width: 900px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      footer { flex-direction: column; gap: 15px; }
+    }
+    @media (max-width: 600px) {
+      .nav { height: 70px; }
+      .nav-pill { display: none; }
+      .pair-card, .status-card { padding: 18px; }
+      .loading-inner { min-height: 420px; }
     }
   </style>
 </head>
 <body>
 
-  <canvas id="bg-canvas"></canvas>
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div id="root">
+    <div class="app">
+      
+      <!-- 🚀 LOADING SCREEN (INITIALIZATION) -->
+      <div class="loading-screen">
+        <div class="loading-inner">
+          <div class="loader-scene" aria-hidden="true">
+            <div class="loader-halo halo-one"></div>
+            <div class="loader-halo halo-two"></div>
+            <div class="loader-ring ring-one"></div>
+            <div class="loader-ring ring-two"></div>
+            <div class="loader-ring ring-three"></div>
+            <div class="loader-sweep"></div>
+            <div class="loader-core">
+              <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"></path>
+                <path d="M5 21h14"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="loading-title">Welcome To ARSLAN MDX</div>
+          <div class="loading-progress"><span></span></div>
+          <div class="loading-card-footer">
+            <span class="loading-status-dot"></span>
+            ARSLAN MDX • INITIALIZING
+          </div>
+        </div>
+      </div>
 
-  <!-- INITIALIZATION PRELOADER -->
-  <div id="boot-screen">
-    <div class="boot-header">
-      <span>ARSLAN MDX BIOS v4.2.0</span>
-      <span id="boot-clock">00:00:00</span>
+      <div class="noise"></div>
+
+      <!-- 🏷️ NAVBAR -->
+      <header class="nav">
+        <a class="brand" href="/">
+          <span class="brand-mark">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"></path>
+              <path d="M5 21h14"></path>
+            </svg>
+          </span>
+          <span>
+            <b>ARSLAN MDX</b>
+            <small>DEV COMMUNITY</small>
+          </span>
+        </a>
+        <div class="nav-right">
+          <button class="music-btn" id="musicBtn">♫ MUSIC ON</button>
+          <div class="nav-pill">
+            <span class="live-dot"></span>
+            PAIRING SYSTEM ONLINE
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <!-- 🦸 HERO BANNER (Using webbanner.png) -->
+        <section class="hero">
+          <div class="hero-banner">
+            <img src="/assets/webbanner.png" alt="ARSLAN MDX Banner">
+          </div>
+        </section>
+
+        <!-- 📊 DASHBOARD GRID -->
+        <section class="dashboard-grid">
+          <!-- Pairing Card -->
+          <div class="pair-card glass">
+            <div class="card-heading">
+              <div>
+                <span class="mini-label">01 • PAIR YOUR NUMBER</span>
+                <h2>Get Pairing Code</h2>
+              </div>
+              <div class="icon-box">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect width="14" height="20" x="5" y="2" rx="2" ry="2"></rect>
+                  <path d="M12 18h.01"></path>
+                </svg>
+              </div>
+            </div>
+            <p class="muted">Enter your WhatsApp number with country code. Examples: <b>+92...</b>, <b>+1...</b>, <b>+44...</b></p>
+            <form id="pairForm">
+              <label for="number">WhatsApp Number</label>
+              <div class="input-wrap">
+                <span>+</span>
+                <input id="number" inputmode="numeric" autocomplete="tel" placeholder="923001234567" value="">
+              </div>
+              <button class="primary-btn" id="pairBtn" type="submit">
+                <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"></path>
+                </svg>
+                REQUEST PAIR CODE
+              </button>
+            </form>
+
+            <!-- Code Result -->
+            <div class="code-result" id="codeResult">
+              <div>
+                <span>PAIRING CODE</span>
+                <strong id="pairCode">────-────</strong>
+                <small>Open WhatsApp → Linked Devices</small>
+              </div>
+              <button class="copy-btn" id="copyBtn" type="button">COPY</button>
+            </div>
+          </div>
+
+          <!-- Server Status Card -->
+          <div class="status-card glass">
+            <div class="card-heading">
+              <div>
+                <span class="mini-label">02 • INFRASTRUCTURE</span>
+                <h2>Server Status</h2>
+              </div>
+              <button class="refresh-btn" id="refreshBtn" title="Refresh">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                  <path d="M21 3v5h-5"></path>
+                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                  <path d="M8 16H3v5"></path>
+                </svg>
+              </button>
+            </div>
+
+            <div class="status-main">
+              <div class="online-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect width="20" height="8" x="2" y="2" rx="2" ry="2"></rect>
+                  <rect width="20" height="8" x="2" y="14" rx="2" ry="2"></rect>
+                  <line x1="6" x2="6.01" y1="6" y2="6"></line>
+                  <line x1="6" x2="6.01" y1="18" y2="18"></line>
+                </svg>
+              </div>
+              <div>
+                <b>All Systems Operational</b>
+                <span>ARSLAN MDX pairing infrastructure</span>
+              </div>
+              <strong id="availableCount">100</strong>
+            </div>
+
+            <div class="stats">
+              <div><span>Total Bots</span><b>500</b></div>
+              <div><span>Total Capacity</span><b>1000</b></div>
+              <div><span>Available</span><b id="statsAvailable">100</b></div>
+            </div>
+
+            <div class="capacity">
+              <div class="capacity-top"><span>Network Capacity</span><b id="capacityText">57% active</b></div>
+              <div class="progress"><span id="capacityBar" style="width:57%"></span></div>
+            </div>
+
+            <div class="server-list" id="serverList">
+              <!-- JS populates 100 servers -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 📖 HOW IT WORKS -->
+        <section class="how">
+          <div class="section-title">
+            <span class="mini-label">03 • QUICK GUIDE</span>
+            <h2>Connect in three simple steps</h2>
+          </div>
+          <div class="steps">
+            <div class="step glass">
+              <span>01</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="14" height="20" x="5" y="2" rx="2" ry="2"></rect>
+                <path d="M12 18h.01"></path>
+              </svg>
+              <h3>Enter Number</h3>
+              <p>Use your WhatsApp number with the country code.</p>
+            </div>
+            <div class="step glass">
+              <span>02</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"></path>
+              </svg>
+              <h3>Get Code</h3>
+              <p>Press request and receive your unique pairing code.</p>
+            </div>
+            <div class="step glass">
+              <span>03</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6 9 17l-5-5"></path>
+              </svg>
+              <h3>Pair ARSLAN MDX</h3>
+              <p>Enter the code in WhatsApp and connect your bot.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 🏢 COMMUNITY BANNER (Using community.png at the end) -->
+        <section class="inc-banner">
+          <img src="/assets/community.png" alt="ARSLAN MDX Community">
+        </section>
+      </main>
+
+      <!-- 🏁 FOOTER -->
+      <footer>
+        <div><b>ARSLAN MDX</b><span>© 2026 ARSLAN MDX DEV Community</span></div>
+        <div class="socials">
+          <a href="https://github.com/ArslanTech-dev" target="_blank" aria-label="GitHub">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"></path>
+              <path d="M9 18c-4.51 2-5-2-7-2"></path>
+            </svg>
+          </a>
+          <a href="https://whatsapp.com/channel/0029VbDu9GHB4hdY2mcGCH0u" target="_blank" aria-label="Channel 1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+            </svg>
+          </a>
+          <a href="https://whatsapp.com/channel/0029VbDCycsAYlUGNvDTtK2F" target="_blank" aria-label="Channel 2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+            </svg>
+          </a>
+          <a href="mailto:arslanchkpt@gmail.com" aria-label="Email">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+            </svg>
+          </a>
+        </div>
+      </footer>
     </div>
-    <div id="boot-logs"></div>
-    <div id="boot-cursor-line"><span class="b-ok">root@arslan-mdx:~#</span> <span class="boot-cursor"></span></div>
-    <div class="boot-progress" id="boot-progress"></div>
   </div>
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar" id="sidebar">
-    <div class="brand">
-      <div class="brand-logo"><i class="fa-solid fa-cube"></i></div>
-      ARSLAN MDX
-    </div>
-    <div class="nav-menu">
-      <button class="nav-item active" data-tab="dashboard"><i class="fa-solid fa-terminal"></i> Terminal</button>
-      <button class="nav-item" data-tab="network"><i class="fa-solid fa-network-wired"></i> Network</button>
-      <button class="nav-item" data-tab="analytics"><i class="fa-solid fa-chart-simple"></i> Analytics</button>
-    </div>
-    <div class="sidebar-footer">
-      &copy; 2024 ARSLAN MDX <br>
-      <span style="color: var(--red);">💖 For Saba</span>
-    </div>
-  </aside>
-
-  <!-- MAIN CONTENT -->
-  <main class="main-content">
-    <header class="topbar">
-      <button class="menu-btn" id="menuBtn"><i class="fa-solid fa-bars"></i></button>
-      <div class="live-ticker">
-        <span>CPU <span class="t-val" id="t-cpu">0%</span></span> |
-        <span>MEM <span class="t-val cyan" id="t-mem">0MB</span></span> |
-        <span>PING <span class="t-val red" id="t-ping">0ms</span></span>
-      </div>
-      <div class="sys-status"><span class="dot"></span> ONLINE</div>
-    </header>
-
-    <div class="content-area">
-      
-      <!-- TAB 1: TERMINAL & PAIRING -->
-      <div class="tab-page active" id="page-dashboard">
-        <div class="grid-2">
-          
-          <!-- Pairing Panel -->
-          <div class="panel">
-            <div class="panel-header">
-              <div class="panel-title"><i class="fa-solid fa-link"></i> CONNECTION NODE</div>
-            </div>
-            <div class="panel-body">
-              <div class="form-group">
-                <label>Select Target Server</label>
-                <select id="serverSelect" class="form-control"></select>
-              </div>
-              <div class="form-group">
-                <label>WhatsApp Number</label>
-                <input type="tel" id="numberInput" class="form-control" placeholder="e.g. 923001234567" inputmode="numeric">
-              </div>
-              <button id="generateBtn" class="btn-primary"><i class="fa-solid fa-bolt"></i> Execute Pairing</button>
-              
-              <div class="code-box" id="pairResult">
-                <div class="code-val" id="pairCode">────-────</div>
-                <div style="font-size: 11px; color: var(--muted); margin-top: 8px;">Enter in Linked Devices</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Advanced Terminal -->
-          <div class="panel">
-            <div class="panel-header">
-              <div class="panel-title"><i class="fa-solid fa-code"></i> LIVE TERMINAL</div>
-            </div>
-            <div class="panel-body" style="padding: 10px;">
-              <div class="terminal-container">
-                <div class="term-header">
-                  <div class="term-dot red"></div>
-                  <div class="term-dot yellow"></div>
-                  <div class="term-dot green"></div>
-                  <div class="term-title">root@arslan-mdx: ~</div>
-                </div>
-                <div class="term-body" id="terminalOutput">
-                  <div class="term-line"><span class="t-time">00:00:00</span><span class="t-ok">[OK]</span><span class="t-txt">Terminal initialized.</span></div>
-                  <div class="term-line"><span class="t-time">00:00:01</span><span class="t-info">[INFO]</span><span class="t-txt">Type 'help' for commands.</span></div>
-                </div>
-                <div class="term-input-line">
-                  <span class="term-prompt">root@mdx:~#</span>
-                  <input type="text" class="term-input" id="termInput" autocomplete="off" autocapitalize="off" spellcheck="false">
-                  <div class="term-cursor"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Active Sessions -->
-        <h2 style="font-size: 16px; font-weight: 800; margin-bottom: 12px;">Active Connections</h2>
-        <div id="sessionList">
-          <div class="panel" style="padding: 15px; text-align: center; color: var(--muted); font-size: 13px;">No active sessions detected.</div>
-        </div>
-      </div>
-
-      <!-- TAB 2: NETWORK -->
-      <div class="tab-page" id="page-network">
-        <h1 style="font-size: 20px; font-weight: 800; margin-bottom: 5px;">Global Network</h1>
-        <p style="color: var(--muted); margin-bottom: 20px; font-size: 13px;">60 Servers Active.</p>
-        <div class="servers-grid" id="serversGrid">
-          <!-- JS Populates -->
-        </div>
-      </div>
-
-      <!-- TAB 3: ANALYTICS -->
-      <div class="tab-page" id="page-analytics">
-        <h1 style="font-size: 20px; font-weight: 800; margin-bottom: 5px;">System Analytics</h1>
-        <p style="color: var(--muted); margin-bottom: 20px; font-size: 13px;">Traffic and performance metrics.</p>
-        <div class="panel" style="padding: 30px 15px; text-align: center;">
-          <i class="fa-solid fa-chart-pie" style="font-size: 36px; color: var(--purple); margin-bottom: 15px;"></i>
-          <h2 style="margin-bottom: 8px; font-size: 16px;">Analytics Engine</h2>
-          <p style="color: var(--muted); font-size: 13px;">Awaiting data...</p>
-        </div>
-      </div>
-
-    </div>
-  </main>
-
-  <!-- BOTTOM NAVIGATION -->
-  <nav class="bottom-nav">
-    <button class="bn-item active" data-tab="dashboard"><i class="fa-solid fa-terminal"></i> Terminal</button>
-    <button class="bn-item" data-tab="network"><i class="fa-solid fa-network-wired"></i> Network</button>
-    <button class="bn-item" data-tab="analytics"><i class="fa-solid fa-chart-simple"></i> Stats</button>
-  </nav>
-
   <script>
-    // 🚀 AUTOMATIC API URL DETECTION (For Pxxl/Localhost)
-    const API_URL = window.location.origin.replace(/\/$/, '');
+    // ═══════════════════════════════════════════════════════
+    // 🎵 MUSIC TOGGLE
+    // ═══════════════════════════════════════════════════════
+    const musicBtn = document.getElementById('musicBtn');
+    let musicOn = true;
+    const audio = new Audio('https://database.ominisave.store/audio/OMINISAVE_1790833305181_KN0V0F.mp3');
+    audio.loop = true;
+    audio.volume = 0.3;
 
-    /* ═══════════════════════════════════════════════════════
-       1. MATRIX RAIN
-       ═══════════════════════════════════════════════════════ */
-    const canvas = document.getElementById('bg-canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-    const chars = '01010101ABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%^&*'.split('');
-    const fontSize = 14; const columns = canvas.width / fontSize; const drops = [];
-    for (let x = 0; x < columns; x++) drops[x] = 1;
-    function drawMatrix() {
-      ctx.fillStyle = 'rgba(3, 7, 18, 0.05)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#06b6d4'; ctx.font = fontSize + 'px monospace';
-      for (let i = 0; i < drops.length; i++) {
-        const text = chars[Math.floor(Math.random() * chars.length)];
-        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
-        drops[i]++;
-      }
-    }
-    setInterval(drawMatrix, 50);
-    window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+    // Try autoplay on first interaction
+    document.body.addEventListener('click', () => {
+      if (musicOn && audio.paused) audio.play().catch(() => {});
+    }, { once: true });
 
-    /* ═══════════════════════════════════════════════════════
-       2. MOBILE SIDEBAR & TABS
-       ═══════════════════════════════════════════════════════ */
-    const menuBtn = document.getElementById('menuBtn');
-    const sidebar = document.getElementById('sidebar');
-    const sidebarOverlay = document.getElementById('sidebarOverlay');
-
-    menuBtn.addEventListener('click', () => { sidebar.classList.add('open'); sidebarOverlay.classList.add('show'); });
-    sidebarOverlay.addEventListener('click', () => { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('show'); });
-
-    function switchTab(tabId) {
-      document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
-      document.querySelector(`.nav-item[data-tab="${tabId}"]`)?.classList.add('active');
-      document.querySelectorAll('.bn-item').forEach(t => t.classList.remove('active'));
-      document.querySelector(`.bn-item[data-tab="${tabId}"]`)?.classList.add('active');
-      document.querySelectorAll('.tab-page').forEach(c => c.classList.remove('active'));
-      document.getElementById(`page-${tabId}`)?.classList.add('active');
-      sidebar.classList.remove('open');
-      sidebarOverlay.classList.remove('show');
-    }
-    document.querySelectorAll('.nav-item, .bn-item').forEach(tab => {
-      tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    musicBtn.addEventListener('click', () => {
+      musicOn = !musicOn;
+      if (musicOn) { audio.play().catch(() => {}); musicBtn.textContent = '♫ MUSIC ON'; }
+      else { audio.pause(); musicBtn.textContent = '♫ MUSIC OFF'; }
     });
 
-    /* ═══════════════════════════════════════════════════════
-       3. BOOT SEQUENCE
-       ═══════════════════════════════════════════════════════ */
-    const bootLines = [
-      "Initializing ARSLAN MDX Kernel...",
-      "Checking system memory... [32GB OK]",
-      "Mounting /tmp/sessions... [OK]",
-      "Loading Baileys v7 protocol... [OK]",
-      "Establishing secure WebSocket layer... [OK]",
-      "Spinning up 60 global servers... [OK]",
-      "Fetching latest WhatsApp Web version... [OK]",
-      "Starting Cron jobs... [OK]",
-      "ARSLAN MDX Core is now ONLINE."
-    ];
-    const bootLogs = document.getElementById('boot-logs');
-    const bootProgress = document.getElementById('boot-progress');
-    const bootScreen = document.getElementById('boot-screen');
-    let currentLine = 0;
+    // ═══════════════════════════════════════════════════════
+    // 🖥️ GENERATE 100 SERVERS
+    // ═══════════════════════════════════════════════════════
+    const serverList = document.getElementById('serverList');
+    const availableCount = document.getElementById('availableCount');
+    const statsAvailable = document.getElementById('statsAvailable');
+    const capacityBar = document.getElementById('capacityBar');
+    const capacityText = document.getElementById('capacityText');
 
-    function updateClock() { document.getElementById('boot-clock').textContent = new Date().toLocaleTimeString('en-GB', {hour12:false}); }
-    setInterval(updateClock, 1000); updateClock();
+    let availableServers = 0;
 
-    function typeBootLine() {
-      if (currentLine < bootLines.length) {
-        const div = document.createElement('div');
-        div.className = 'boot-log';
-        const isLast = currentLine === bootLines.length - 1;
-        div.innerHTML = `<span class="b-time">[${new Date().toLocaleTimeString('en-GB', {hour12:false})}]</span> <span class="${isLast?'b-ok':'b-info'}">${isLast?'[OK]':'[INFO]'}</span> ${bootLines[currentLine]}`;
-        bootLogs.appendChild(div);
-        currentLine++;
-        bootProgress.style.width = `${(currentLine / bootLines.length) * 100}%`;
-        setTimeout(typeBootLine, Math.random() * 150 + 100); 
-      } else {
-        setTimeout(() => { bootScreen.style.opacity = '0'; setTimeout(() => bootScreen.style.display = 'none', 600); }, 1000);
-      }
-    }
-    setTimeout(typeBootLine, 500);
+    for (let i = 1; i <= 100; i++) {
+      const isFull = i % 7 === 0; // Har 7th server full
+      const used = isFull ? 50 : Math.floor(Math.random() * 45);
+      if (!isFull) availableServers++;
 
-    /* ═══════════════════════════════════════════════════════
-       4. LIVE STATS
-       ═══════════════════════════════════════════════════════ */
-    setInterval(() => {
-      document.getElementById('t-cpu').textContent = Math.floor(Math.random() * 15 + 5) + '%';
-      document.getElementById('t-mem').textContent = Math.floor(Math.random() * 100 + 350) + 'MB';
-      document.getElementById('t-ping').textContent = Math.floor(Math.random() * 20 + 10) + 'ms';
-    }, 2000);
-
-    /* ═══════════════════════════════════════════════════════
-       5. GENERATE 60 SERVERS
-       ═══════════════════════════════════════════════════════ */
-    const serverSelect = document.getElementById('serverSelect');
-    const serversGrid = document.getElementById('serversGrid');
-
-    for (let i = 1; i <= 60; i++) {
-      const serverName = `Server ${i}`;
-      const region = i <= 20 ? 'US' : i <= 40 ? 'EU' : 'ASIA';
-      
-      // Dropdown
-      const opt = document.createElement('option');
-      opt.value = serverName;
-      opt.textContent = `${serverName} // ${region}`;
-      serverSelect.appendChild(opt);
-
-      // Grid
-      const card = document.createElement('div');
-      card.className = 'server-card';
-      card.innerHTML = `
-        <div class="s-name">${serverName.toUpperCase()}</div>
-        <div class="s-status s-on">ONLINE</div>
+      const row = document.createElement('div');
+      row.className = 'server-row';
+      row.innerHTML = `
+        <span class="server-name"><i class="server-dot ${isFull ? 'full-dot' : ''}"></i>Server ${i}</span>
+        <span>${used}/50</span>
+        <b class="${isFull ? 'full' : 'available'}">${isFull ? 'FULL' : 'AVAILABLE'}</b>
       `;
-      serversGrid.appendChild(card);
+      serverList.appendChild(row);
     }
 
-    /* ═══════════════════════════════════════════════════════
-       6. INTERACTIVE TERMINAL ENGINE & ANIMATIONS
-       ═══════════════════════════════════════════════════════ */
-    const termOutput = document.getElementById('terminalOutput');
-    const termInput = document.getElementById('termInput');
+    availableCount.textContent = availableServers;
+    statsAvailable.textContent = availableServers;
 
-    function addLog(type, msg, animate = false) {
-      const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
-      let cls = 't-info';
-      if (type === 'OK') cls = 't-ok';
-      else if (type === 'ERR') cls = 't-err';
-      else if (type === 'WARN') cls = 't-warn';
-      else if (type === 'SABA') cls = 't-saba';
-      
-      const line = document.createElement('div');
-      line.className = 'term-line';
-      line.innerHTML = `<span class="t-time">${time}</span><span class="${cls}">[${type}]</span><span class="t-txt"></span>`;
-      termOutput.appendChild(line);
-      termOutput.scrollTop = termOutput.scrollHeight;
+    const totalUsed = 100 * 50 - availableServers * 50;
+    const capacityPercent = Math.round((totalUsed / 5000) * 100);
+    capacityBar.style.width = `${capacityPercent}%`;
+    capacityText.textContent = `${capacityPercent}% active`;
 
-      const span = line.querySelector('.t-txt');
-      if (animate) {
-        let i = 0;
-        function typeWriter() {
-          if (i < msg.length) {
-            span.textContent += msg.charAt(i);
-            i++;
-            termOutput.scrollTop = termOutput.scrollHeight;
-            setTimeout(typeWriter, 20); // Typing speed
-          }
-        }
-        typeWriter();
-      } else {
-        span.textContent = msg;
-      }
-    }
-
-    // Command Handler
-    termInput.addEventListener('keydown', async (e) => {
-      if (e.key === 'Enter') {
-        const val = termInput.value.trim().toLowerCase();
-        termInput.value = '';
-        if (!val) return;
-        
-        addLog('INFO', `root@mdx:~# ${val}`, false);
-
-        switch (val) {
-          case '1':
-          case 'ping':
-            addLog('INFO', 'Pinging WhatsApp servers...', true);
-            await new Promise(r => setTimeout(r, 800));
-            addLog('OK', 'Ping successful. Latency: 42ms.', true);
-            break;
-            
-          case '2':
-          case 'help':
-            addLog('OK', 'Available commands:', true);
-            setTimeout(() => addLog('INFO', '1. ping | 2. help | 3. alive | 4. hack | 5. owner', true), 300);
-            setTimeout(() => addLog('INFO', '6. saba | 7. arslan | 8. root | 9. close', true), 600);
-            break;
-            
-          case '3':
-          case 'alive':
-            addLog('OK', 'System is ALIVE.', true);
-            setTimeout(() => addLog('INFO', 'Uptime: 42h 12m | Memory: 420MB / 1024MB', true), 400);
-            break;
-            
-          case '4':
-          case 'hack':
-            addLog('WARN', 'Initializing hack protocol...', true);
-            setTimeout(() => addLog('INFO', 'Bypassing firewall... 10%', true), 500);
-            setTimeout(() => addLog('INFO', 'Bypassing firewall... 50%', true), 1000);
-            setTimeout(() => addLog('INFO', 'Bypassing firewall... 99%', true), 1500);
-            setTimeout(() => addLog('ERR', 'Access Denied. Just kidding, you are the owner! 😂', true), 2000);
-            break;
-            
-          case '5':
-          case 'owner':
-            addLog('OK', 'Name: Arslan Tech', true);
-            setTimeout(() => addLog('INFO', 'Role: Bot Architect | Org: ARSLAN MDX', true), 300);
-            break;
-            
-          case '6':
-          case 'saba':
-            addLog('SABA', '💖 For brown hair wali — my everything.', true);
-            setTimeout(() => addLog('SABA', 'She is the reason this bot exists. 👰', true), 500);
-            break;
-            
-          case '7':
-          case 'arslan':
-            addLog('OK', 'ARSLAN MDX v1.0.0 Enterprise.', true);
-            setTimeout(() => addLog('INFO', 'Engine: Baileys v7 | Database: Cloud-Safe JSON', true), 300);
-            break;
-            
-          case '8':
-          case 'root':
-            addLog('ERR', 'Access Granted. Welcome to the core, ROOT user.', true);
-            break;
-            
-          case '9':
-          case 'close':
-            addLog('WARN', 'Shutting down terminal... Goodbye!', true);
-            setTimeout(() => termOutput.innerHTML = '', 1500);
-            break;
-            
-          default:
-            addLog('ERR', `Command not found: ${val}. Type 'help' for a list.`, true);
-        }
-      }
-    });
-
-    /* ═══════════════════════════════════════════════════════
-       7. REAL PAIRING LOGIC
-       ═══════════════════════════════════════════════════════ */
-    const numberInput = document.getElementById('numberInput');
-    const generateBtn = document.getElementById('generateBtn');
-    const pairResult = document.getElementById('pairResult');
+    // ═══════════════════════════════════════════════════════
+    // 🔐 PAIRING LOGIC
+    // ═══════════════════════════════════════════════════════
+    const pairForm = document.getElementById('pairForm');
+    const numberInput = document.getElementById('number');
+    const pairBtn = document.getElementById('pairBtn');
+    const codeResult = document.getElementById('codeResult');
     const pairCode = document.getElementById('pairCode');
-    const sessionList = document.getElementById('sessionList');
+    const copyBtn = document.getElementById('copyBtn');
 
-    async function generatePairingCode() {
+    pairForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
       const cleaned = numberInput.value.replace(/\D/g, '');
-      if (cleaned.length < 10) return alert('Enter a valid number with country code.');
+      if (cleaned.length < 10) {
+        alert('Please enter a valid phone number with country code.');
+        return;
+      }
 
-      generateBtn.disabled = true;
-      generateBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deploying...';
-      pairResult.classList.remove('show');
-      
-      addLog('INFO', `Initiating pairing for ${cleaned}...`, true);
+      pairBtn.disabled = true;
+      pairBtn.innerHTML = '<svg class="spin" xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> REQUESTING...';
+      codeResult.style.display = 'none';
 
       try {
-        const res = await fetch(`${API_URL}/api/pair`, {
+        const res = await fetch(`${window.location.origin}/api/pair`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ number: cleaned })
         });
         const data = await res.json();
-        
         if (!data.success) throw new Error(data.error || 'Pairing failed');
 
         pairCode.textContent = data.code;
-        pairResult.classList.add('show');
-        addLog('OK', `Pairing Code: ${data.code}`, true);
-        setTimeout(refreshStatus, 2000);
+        codeResult.style.display = 'flex';
       } catch (err) {
-        addLog('ERR', `Deployment Failed: ${err.message}`, true);
         alert(err.message);
       } finally {
-        generateBtn.disabled = false;
-        generateBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Execute Pairing';
+        pairBtn.disabled = false;
+        pairBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"></path></svg> REQUEST PAIR CODE';
       }
-    }
+    });
 
-    /* ═══════════════════════════════════════════════════════
-       8. STATUS POLLING
-       ═══════════════════════════════════════════════════════ */
-    async function refreshStatus() {
-      try {
-        const res = await fetch(`${API_URL}/api/status`);
-        const data = await res.json();
-        if (!data.success) return;
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(pairCode.textContent).then(() => {
+        copyBtn.textContent = 'COPIED!';
+        setTimeout(() => copyBtn.textContent = 'COPY', 2000);
+      });
+    });
 
-        if (!data.sessions || data.sessions.length === 0) {
-          sessionList.innerHTML = `<div class="panel" style="padding: 15px; text-align: center; color: var(--muted); font-size: 13px;">No active sessions detected.</div>`;
-          return;
-        }
-
-        sessionList.innerHTML = data.sessions.map(s => {
-          const cls = s.status === 'connected' ? 'connected' : 'connecting';
-          const initial = (s.number || '?').slice(-2);
-          return `
-            <div class="session-item">
-              <div class="session-header">
-                <div class="session-info-mob">
-                  <div class="avatar">${initial}</div>
-                  <div>
-                    <div style="font-weight: 700; font-size: 14px;">+${s.number}</div>
-                    <div style="font-size: 11px; color: var(--muted); font-family: var(--font-mono);">${s.name || 'Device'}</div>
-                  </div>
-                </div>
-                <span style="font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 20px; background: rgba(34,197,94,0.1); color: ${cls==='connected'?'var(--green)':'var(--yellow)'};">${s.status.toUpperCase()}</span>
-              </div>
-              <button class="btn-unpair" onclick="unpairSession('${s.number}')"><i class="fa-solid fa-power-off"></i> Disconnect</button>
-            </div>`;
-        }).join('');
-      } catch (err) { console.error(err); }
-    }
-
-    async function unpairSession(number) {
-      if (!confirm(`Terminate session +${number}?`)) return;
-      addLog('WARN', `Killing session: ${number}`, true);
-      try {
-        await fetch(`${API_URL}/api/unpair`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ number }) });
-        refreshStatus();
-      } catch (err) { alert('Unpair failed'); }
-    }
-
-    generateBtn.addEventListener('click', generatePairingCode);
-    numberInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') generatePairingCode(); });
-    
-    refreshStatus();
-    setInterval(refreshStatus, 5000);
+    // Refresh button
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+      location.reload();
+    });
   </script>
 </body>
 </html>
