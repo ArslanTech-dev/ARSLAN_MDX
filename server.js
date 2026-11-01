@@ -1,8 +1,7 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🌐 SERVER.JS — Express API (Universal Port Binding)
+ * 🌐 SERVER.JS — Express API (Universal Port & Assets Fix)
  * ═══════════════════════════════════════════════════════════════════
- * Supports: Termux, Bot-Hosting, Pxxl, nodeX, Render, VPS
  */
 
 import 'dotenv/config';
@@ -25,14 +24,22 @@ const app = express();
 // 🛡️ MIDDLEWARE
 // ═══════════════════════════════════════════════════════════════════
 
+// 1. CORS (Frontend ko connect hone do)
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// 2. JSON Body Parser
 app.use(express.json({ limit: '1mb' }));
+
+// 3. Serve Frontend (index.html, config.js)
 app.use(express.static('public'));
+
+// 4. Serve Assets (webbanner.png, community.png, Welcome.png)
+// 👈 YEH LINE IMAGES KO FIX KAREGI
+app.use('/assets', express.static('assets'));
 
 // ═══════════════════════════════════════════════════════════════════
 // 📡 API ENDPOINTS
@@ -48,7 +55,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// Generate Pairing Code
+// POST /api/pair
 app.post('/api/pair', async (req, res) => {
   try {
     const { number } = req.body || {};
@@ -67,6 +74,7 @@ app.post('/api/pair', async (req, res) => {
       return res.status(429).json({ success: false, error: `Max limit of ${CONFIG.MAX_SESSIONS} sessions reached.` });
     }
 
+    // Create pairing code
     const code = await createPairingCode(cleanNum);
     return res.json({ success: true, code });
 
@@ -76,7 +84,7 @@ app.post('/api/pair', async (req, res) => {
   }
 });
 
-// Get Active Sessions
+// GET /api/status
 app.get('/api/status', (req, res) => {
   try {
     const sessions = getSessionList();
@@ -92,7 +100,7 @@ app.get('/api/status', (req, res) => {
   }
 });
 
-// Unpair Session
+// POST /api/unpair
 app.post('/api/unpair', async (req, res) => {
   try {
     const { number } = req.body || {};
@@ -109,19 +117,20 @@ app.post('/api/unpair', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// 🚀 BOOT & PORT BINDING (Universal Fix)
+// 🚀 BOOT & PORT BINDING (CRITICAL CLOUD FIX)
 // ═══════════════════════════════════════════════════════════════════
 
-// 🚀 CRITICAL: SERVER_PORT for Bot-Hosting, PORT for others
+// Bot-Hosting uses SERVER_PORT. Others use PORT.
 const port = process.env.SERVER_PORT || process.env.PORT || CONFIG.PORT || 3000;
 
 (async () => {
   try {
+    // Initialize /tmp/sessions folder
     await initSessionManager();
-    
+
+    // Bind to 0.0.0.0 so cloud platforms can route traffic
     app.listen(port, '0.0.0.0', () => {
       logger.success(`🌐 ARSLAN MDX running on 0.0.0.0:${port}`);
-      logger.info(`📍 Access the dashboard at: http://localhost:${port}`);
     });
   } catch (err) {
     logger.error('Server boot failed:', err);
