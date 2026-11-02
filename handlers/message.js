@@ -30,7 +30,9 @@ export async function loadPlugins() {
         }
         count++;
       }
-    } catch (err) {}
+    } catch (err) {
+      logger.error(`[Plugin] Failed to load (${file}):`, err.message);
+    }
   }
   loaded = true;
   logger.success(`Total Plugins Loaded: ${count}`);
@@ -54,12 +56,6 @@ async function handleAntilink(sock, msg, from, sender, text, sessionNumber) {
     if (!isBotAdmin) return false;
 
     await sock.sendMessage(from, { delete: msg.key });
-
-    const action = settings.antilink_action || 'warn';
-    const caption = `*╭┈──〔 ARSLAN 𝙼𝙳X〕─⊷*\n*├▢ 🔗 ANTILINK DETECTED*\n*├▢* @${cleanJid(sender)}\n*├▢* Links are not allowed here!\n*├▢* Action: ${action === 'kick' ? 'Kicked' : 'Warning'}\n*╰───────────────⊷*`;
-
-    await sock.sendMessage(from, { text: caption, mentions: [sender] });
-    if (action === 'kick') await sock.groupParticipantsUpdate(from, [sender], 'remove');
     return true;
   } catch (err) {
     return false;
@@ -143,7 +139,8 @@ export async function handleMessage(sock, msg, sessionNumber) {
     const text = extractText(msg);
     const owner = isOwner(sender);
 
-    if (from === 'status@broadcast' || from.endsWith('@newsletter') || from.endsWith('@lid')) {
+    // 🚀 SPAM FILTER (Removed @lid so DMs work)
+    if (from === 'status@broadcast' || from.endsWith('@newsletter')) {
       return;
     }
 
@@ -179,6 +176,7 @@ export async function handleMessage(sock, msg, sessionNumber) {
     const ctx = {
       sock, msg, from, sender, isGroup: group, isOwner: owner,
       args, text, command: plugin.name, prefix, sessionNumber,
+      botNumber: sock.user?.id?.split(':')[0],
       reply: (t, opts = {}) => sock.sendMessage(from, { text: t, ...opts }, { quoted: msg }),
       react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } }).catch(() => {}),
       send: (content, opts = {}) => sock.sendMessage(from, content, { quoted: msg, ...opts }),
@@ -191,7 +189,9 @@ export async function handleMessage(sock, msg, sessionNumber) {
     } catch (err) {
       logger.error(`[${sessionNumber}] [${plugin.name}] ${err.message}`);
     }
-  } catch (err) {}
+  } catch (err) {
+    logger.error(`[${sessionNumber}] handleMessage error: ${err.message}`);
+  }
 }
 
 export function setupEvents(sock, sessionNumber) {
