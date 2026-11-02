@@ -2,7 +2,6 @@
  * ═══════════════════════════════════════════════════════════════════
  * ⭐ INDEX.JS — ARSLAN MDX · Ultra Strong Pairing Engine
  * ═══════════════════════════════════════════════════════════════════
- * Powered by @ms-nicky/baileys (Pairing Code Fixes)
  */
 
 import makeWASocket, {
@@ -37,9 +36,6 @@ const WELCOME_IMAGE_PATH = path.join(__dirname, 'assets', 'Welcome.png');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// ═══════════════════════════════════════════════════════════════════
-// 🎨 ULTRA-ADVANCED BANNER
-// ═══════════════════════════════════════════════════════════════════
 function displayBanner() {
   const c = {
     cyan: '\x1b[36m', purple: '\x1b[35m', green: '\x1b[32m',
@@ -74,9 +70,6 @@ ${c.cyan}${BL}${H.repeat(68)}${BR}${c.reset}
   console.log(banner);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🚀 INIT & AUTO-CONNECT
-// ═══════════════════════════════════════════════════════════════════
 export async function initSessionManager() {
   displayBanner();
   logger.info(`[BOOT] Starting ARSLAN MDX Core...`);
@@ -98,9 +91,6 @@ export async function initSessionManager() {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 📰 CHANNEL FOLLOW & WELCOME
-// ═══════════════════════════════════════════════════════════════════
 async function followChannel(sock, url) {
   try {
     const code = String(url).match(/\/channel\/([A-Za-z0-9]+)/)?.[1];
@@ -142,9 +132,6 @@ async function sendWelcomeMessage(sock, number) {
   } catch (err) {}
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🤖 CORE — START BOT (ULTRA STRONG PAIRING)
-// ═══════════════════════════════════════════════════════════════════
 export async function startBotForUser(number, isNew = false) {
   if (activeSessions.has(number)) return activeSessions.get(number);
   
@@ -160,10 +147,9 @@ export async function startBotForUser(number, isNew = false) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
     },
-    // ✅ CANONICAL BROWSER + COUNTRY CODE
     browser: Browsers.macOS('Chrome'),
     companionPlatformDisplay: 'Chrome (Mac OS)',
-    countryCode: 'PK', // 👈 Aapka Country Code (Pakistan ke liye PK)
+    countryCode: 'PK',
     generateHighQualityLinkPreview: true,
     markOnlineOnConnect: true, 
     syncFullHistory: false,
@@ -181,18 +167,26 @@ export async function startBotForUser(number, isNew = false) {
   let pairingRequested = false;
   let pairingReady = false;
 
-  // 🚀 READINESS GATE: Wait for pair-device event
   sock.ev.on('pair-device', () => {
     logger.info(`[Pairing] Server is ready for pairing code.`);
     pairingReady = true;
   });
 
+  // 🚀 MESSAGE RECEIVER (With RAW Debug Logs)
   sock.ev.on('messages.upsert', async (m) => {
     for (const msg of m.messages) {
       if (!msg.message) continue; 
+      
+      const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+      if (text) {
+        logger.info(`[RAW] Message received: "${text}" | from: ${msg.key.remoteJid} | fromMe: ${msg.key.fromMe}`);
+      }
+
       try {
         await handleMessage(sock, msg, number);
-      } catch (err) {}
+      } catch (err) {
+        logger.error(`[RAW] handleMessage error:`, err.message);
+      }
     }
   });
 
@@ -204,7 +198,6 @@ export async function startBotForUser(number, isNew = false) {
       const pending = pendingPairings.get(number);
       
       try {
-        // 🚀 READINESS GATE: Wait for pair-device event (max 5 sec)
         let waitAttempts = 0;
         while (!pairingReady && waitAttempts < 10) {
           logger.info(`[Pairing] Waiting for pair-device event... (${waitAttempts + 1}/10)`);
@@ -286,9 +279,6 @@ export async function startBotForUser(number, isNew = false) {
   return sock;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🔐 CREATE PAIRING CODE
-// ═══════════════════════════════════════════════════════════════════
 export async function createPairingCode(number) {
   if (!activeSessions.has(number)) await deleteSession(number);
   return new Promise((resolve, reject) => {
@@ -301,9 +291,6 @@ export async function createPairingCode(number) {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🗑️ UNPAIR
-// ═══════════════════════════════════════════════════════════════════
 export async function unpairUser(number) {
   const sock = activeSessions.get(number);
   try {
@@ -320,9 +307,6 @@ export async function unpairUser(number) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 📊 GET SESSION LIST
-// ═══════════════════════════════════════════════════════════════════
 export function getSessionList() {
   const out = [];
   for (const [number, sock] of activeSessions.entries()) {
