@@ -2,14 +2,15 @@
  * ═══════════════════════════════════════════════════════════════════
  * ⭐ INDEX.JS — ARSLAN MDX · Ultra Strong Pairing Engine
  * ═══════════════════════════════════════════════════════════════════
- * Official @whiskeysockets/baileys v7
+ * Powered by @ms-nicky/baileys (Pairing Code Fixes)
  */
 
 import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
   makeCacheableSignalKeyStore,
-  fetchLatestWaWebVersion
+  fetchLatestWaWebVersion,
+  Browsers
 } from '@whiskeysockets/baileys';
 
 import { Boom } from '@hapi/boom';
@@ -62,7 +63,7 @@ ${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}            ██║ ╚═╝ █�
 ${c.cyan}${V}${c.reset}  ${c.cyan}${c.bold}            ╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝               ${c.reset}  ${c.cyan}${V}${c.reset}
 ${c.cyan}${ML}${H.repeat(68)}${MR}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.yellow}⚡ CORE SYSTEM DIAGNOSTICS${c.reset}                                         ${c.cyan}${V}${c.reset}
-${c.cyan}${V}${c.reset} ${c.green}● ENGINE    :${c.reset} @whiskeysockets/baileys v7 (Official)            ${c.cyan}${V}${c.reset}
+${c.cyan}${V}${c.reset} ${c.green}● ENGINE    :${c.reset} @ms-nicky/baileys (Fork)                     ${c.cyan}${V}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.green}● NODE.JS   :${c.reset} ${process.version.padEnd(43)} ${c.cyan}${V}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.green}● PLATFORM  :${c.reset} ${(os.platform() + ' ' + os.arch()).padEnd(43)} ${c.cyan}${V}${c.reset}
 ${c.cyan}${V}${c.reset} ${c.green}● STATUS    :${c.reset} ${c.cyan}ONLINE & OPERATIONAL${c.reset}                            ${c.cyan}${V}${c.reset}
@@ -159,9 +160,10 @@ export async function startBotForUser(number, isNew = false) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
     },
-    // ✅ CANONICAL BROWSER FIX (Linux for Cloud)
-    browser: ['Chrome (Linux)', 'Chrome', '120.0.0.0'], 
-    companionPlatformDisplay: 'Chrome (Linux)',
+    // ✅ CANONICAL BROWSER + COUNTRY CODE
+    browser: Browsers.macOS('Chrome'),
+    companionPlatformDisplay: 'Chrome (Mac OS)',
+    countryCode: 'PK', // 👈 Aapka Country Code (Pakistan ke liye PK)
     generateHighQualityLinkPreview: true,
     markOnlineOnConnect: true, 
     syncFullHistory: false,
@@ -177,6 +179,13 @@ export async function startBotForUser(number, isNew = false) {
 
   let hasOpenedOnce = false;
   let pairingRequested = false;
+  let pairingReady = false;
+
+  // 🚀 READINESS GATE: Wait for pair-device event
+  sock.ev.on('pair-device', () => {
+    logger.info(`[Pairing] Server is ready for pairing code.`);
+    pairingReady = true;
+  });
 
   sock.ev.on('messages.upsert', async (m) => {
     for (const msg of m.messages) {
@@ -190,14 +199,22 @@ export async function startBotForUser(number, isNew = false) {
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    // 🚀 PAIRING LOGIC (Fixed: No pair-device wait, direct 4s delay)
     if (qr && pendingPairings.has(number) && !sock.authState.creds.registered && !pairingRequested) {
       pairingRequested = true;
       const pending = pendingPairings.get(number);
       
       try {
-        logger.info(`[Pairing] QR received. Waiting 4s for socket stabilization...`);
-        await sleep(4000); // Wait for socket to be fully ready
+        // 🚀 READINESS GATE: Wait for pair-device event (max 5 sec)
+        let waitAttempts = 0;
+        while (!pairingReady && waitAttempts < 10) {
+          logger.info(`[Pairing] Waiting for pair-device event... (${waitAttempts + 1}/10)`);
+          await sleep(500);
+          waitAttempts++;
+        }
+
+        if (!pairingReady) {
+          logger.warn(`[Pairing] pair-device timeout. Proceeding with fallback...`);
+        }
 
         const raw = await sock.requestPairingCode(number);
         const code = formatPairingCode(raw);
