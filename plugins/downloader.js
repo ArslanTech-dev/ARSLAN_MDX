@@ -2,8 +2,10 @@
  * ═══════════════════════════════════════════════════════════════════
  * 📥 DOWNLOADER.JS — ARSLAN MDX Downloader Commands
  * ═══════════════════════════════════════════════════════════════════
- * Ultra Advanced Layout | Exact Template Style
+ * Powered by @kelvdra/scraper (No API Key Needed)
  */
+
+import { ytmp3, search } from '@kelvdra/scraper';
 
 // 🚀 View Channel Context (Forwarded Style)
 const getContextInfo = () => {
@@ -11,63 +13,84 @@ const getContextInfo = () => {
     forwardingScore: 999,
     isForwarded: true,
     forwardedNewsletterMessageInfo: {
-      newsletterJid: '120363412450457588@newsletter', // Aapka channel JID
+      newsletterJid: '120363412450457588@newsletter', 
       newsletterName: 'ARSLAN MDX',
       serverMessageId: 143
     }
   };
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// 1. PLAY — YouTube Audio Downloader
-// ═══════════════════════════════════════════════════════════════════
+// 🎲 Random Songs (Agar user bina naam ke .play likhe)
+const randomSongs = [
+  'Admirin You Karan Aujla',
+  'Kesariya Brahmastra',
+  'Tum Hi Ho Aashiqui 2',
+  'Apna Bana Le Bhediya',
+  'Heeriye Jasleen Royal',
+  'Cheques Shubh',
+  'Excuses AP Dhillon',
+  'Mi Amor Sharn',
+  'Lover Talwinder'
+];
+
 export const play = {
   name: 'play',
   aliases: ['song', 'music', 'ytmp3'],
   async run(ctx) {
-    const query = ctx.args.join(' ');
+    let query = ctx.args.join(' ');
     
+    // 🎲 Random Search Logic
     if (!query) {
-      return ctx.reply(`> ⚠️ *USAGE*\n> ╰─➤ ${ctx.prefix}play <song name>\n> ╰─➤ Example: ${ctx.prefix}play Kesariya`);
+      query = randomSongs[Math.floor(Math.random() * randomSongs.length)];
+      await ctx.reply(`> 🎲 *Random Song Selected*\n> ╰─➤ Searching: \`${query}\``);
     }
 
     await ctx.react('⏳');
 
     try {
-      // 🚀 API Call (NexOracle API - returns views, duration, author)
-      const res = await fetch(`https://api.nexoracle.com/downloader/yt-play?q=${encodeURIComponent(query)}&apikey=free_key@maher_apis`);
-      const data = await res.json();
-
-      if (!data.status || !data.result) {
-        throw new Error('Song not found or API error.');
+      // 🚀 1. Search the song on YouTube
+      const searchResults = await search(query, { limit: 1 });
+      
+      if (!searchResults || searchResults.length === 0) {
+        throw new Error('Song not found.');
       }
 
-      const { title, author, duration, views, audio } = data.result;
+      const video = searchResults[0];
+      const videoUrl = video.url;
+      
+      // 🚀 2. Download the audio
+      const audioData = await ytmp3(videoUrl);
+
+      if (!audioData || !audioData.dl_url) {
+        throw new Error('Failed to download audio.');
+      }
 
       await ctx.react('✅');
 
+      const { title, author, duration, views, dl_url } = audioData;
+
       // ═══════════════════════════════════════════════════════
-      // 🎨 EXACT TEMPLATE STYLE
+      // 🎨 EXACT NAWAZ MD STYLE TEMPLATE
       // ═══════════════════════════════════════════════════════
       const caption = `*╭─❍══ ⃟ ⃟ ⃟   𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇   ⃟ ⃟ ⃟══⊷❍*
 ┇◆╭┉┉┉┉┉┉┉┉┉┉━┈⊷
 ┇◆┋🎧 *𝐀𝐔𝐃𝐈𝐎 𝐃𝐎𝐖𝐍𝐋𝐎𝐀𝐃𝐄𝐑*
 ┇◆┋
-┇◆┋🎵 *Title:* ${title}
-┇◆┋⏱️ *Duration:* ${duration}
-┇◆┋👀 *Views:* ${views}
-┇◆┋📺 *Author:* ${author}
+┇◆┋🎵 *Title:* ${title || 'Unknown'}
+┇◆┋⏱️ *Duration:* ${duration || 'Unknown'}
+┇◆┋👀 *Views:* ${views || 'N/A'}
+┇◆┋📺 *Author:* ${author || 'Unknown'}
 ┇◆┋📥 *Status:* Downloading...
 ┇◆╰┉┉┉┉┉┉┉┉┉┉┉┉┉━┈⊷
 ╰═══════════════════⍟
 
 > © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇`;
 
-      // Send Audio with Template Caption and Context (View Channel)
+      // 🚀 3. Send the audio file
       await ctx.send({
-        audio: { url: audio },
+        audio: { url: dl_url },
         mimetype: 'audio/mp4',
-        fileName: `${title}.mp3`,
+        fileName: `${title || 'audio'}.mp3`,
         caption: caption,
         contextInfo: getContextInfo()
       });
