@@ -2,7 +2,7 @@
  * ═══════════════════════════════════════════════════════════════════
  * 🎮 GENERAL.JS — ARSLAN MDX General Commands
  * ═══════════════════════════════════════════════════════════════════
- * Exact Template Style | No Menu | View Channel Context
+ * Custom Designs | Ping with Channels | 1-Line Uptime
  */
 
 import fs from 'fs-extra';
@@ -18,7 +18,7 @@ const LOGO_PATH = path.join(__dirname, '..', 'assets', 'logo.png');
 const startTime = Date.now();
 const prefix = CONFIG.PREFIX || '.';
 
-// 🚀 View Channel Button Context
+// 🚀 View Channel Context
 const getContextInfo = () => {
   return {
     forwardingScore: 999,
@@ -32,37 +32,11 @@ const getContextInfo = () => {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// 1. PING — Advanced Template
+// 1. PING — With Channels
 // ═══════════════════════════════════════════════════════════════════
 export const ping = {
   name: 'ping',
   aliases: ['p'],
-  async run(ctx) {
-    await ctx.react('⚡');
-    
-    const latency = Date.now() - (ctx.msg.messageTimestamp * 1000);
-    
-    const text = `*╭─❍══ ⃟ ⃟ ⃟   𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇   ⃟ ⃟ ⃟══⊷❍*
-┇◆╭┉┉┉┉┉┉┉┉┉┉━┈⊷
-┇◆┋⚡ *𝐏𝐎𝐍𝐆 𝐑𝐄𝐏𝐋𝐘!*
-┇◆┋
-┇◆┋⏱️ *Latency:* ${latency} ms
-┇◆┋🚀 *Status:* Still Running
-┇◆╰┉┉┉┉┉┉┉┉┉┉┉┉┉━┈⊷
-╰═══════════════════⍟
-
-> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇`;
-
-    await ctx.send({ text, contextInfo: getContextInfo() });
-  },
-};
-
-// ═══════════════════════════════════════════════════════════════════
-// 2. PING2 — Aapke Diye Hue Exact Format Mein
-// ═══════════════════════════════════════════════════════════════════
-export const ping2 = {
-  name: 'ping2',
-  aliases: ['p2'],
   async run(ctx) {
     await ctx.react('🌸');
     
@@ -70,14 +44,39 @@ export const ping2 = {
     
     const text = `> *🌸 Pᴏɴɢ Rᴇᴘʟʏ!*
 > ╰─➤ Lᴀᴛᴇɴᴄʏ: ${latency} ms
-> ╰─➤ Sᴛɪʟʟ Rᴜɴɴɪɴɢ 💗`;
+> ╰─➤ Sᴛɪʟʟ Rᴜɴɴɪɴɢ 💗
+
+📢 *ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟꜱ*
+┃ ▸ https://whatsapp.com/channel/0029VbDu9GHB4hdY2mcGCH0u
+┃ ▸ https://whatsapp.com/channel/0029VbDCycsAYlUGNvDTtK2F`;
 
     await ctx.send({ text, contextInfo: getContextInfo() });
   },
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// 3. ALIVE — With Logo & Template
+// 2. PING2 — Without Channels (Exact Box Design)
+// ═══════════════════════════════════════════════════════════════════
+export const ping2 = {
+  name: 'ping2',
+  aliases: ['p2', 'speed'],
+  async run(ctx) {
+    await ctx.react('⚡');
+    
+    const latency = Date.now() - (ctx.msg.messageTimestamp * 1000);
+    
+    const text = `╔═════ ⌈ *⚡ ᴀʀsʟᴀɴ-ᴍᴅx ᴘɪɴɢ* ⌋ ═════✧
+║ 📶 *ʀᴇsᴘᴏɴsᴇ:* ${latency} ms
+║ 🧠 *sᴛᴀᴛᴜs:* ⚡ *ғᴀsᴛ & ʀᴇsᴘᴏɴsɪᴠᴇ*
+║ 💫 *ᴍᴏᴅᴇ:* Active & Stable
+╚══════════════════════✧`;
+
+    await ctx.send({ text, contextInfo: getContextInfo() });
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// 3. ALIVE — With Logo
 // ═══════════════════════════════════════════════════════════════════
 export const alive = {
   name: 'alive',
@@ -119,7 +118,28 @@ export const alive = {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// 4. OWNER
+// 4. UPTIME — Single Line
+// ═══════════════════════════════════════════════════════════════════
+export const uptime = {
+  name: 'uptime',
+  aliases: ['up'],
+  async run(ctx) {
+    await ctx.react('⏱️');
+    
+    const ms = Date.now() - startTime;
+    const days = Math.floor(ms / 86400000);
+    const hours = Math.floor((ms % 86400000) / 3600000);
+    const minutes = Math.floor((ms % 3600000) / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+
+    const text = `> ⏱️ *Uptime:* ${days}d ${hours}h ${minutes}m ${seconds}s`;
+
+    await ctx.send({ text, contextInfo: getContextInfo() });
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// 5. OWNER
 // ═══════════════════════════════════════════════════════════════════
 export const owner = {
   name: 'owner',
@@ -144,7 +164,7 @@ export const owner = {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// 5. INFO
+// 6. INFO
 // ═══════════════════════════════════════════════════════════════════
 export const info = {
   name: 'info',
@@ -170,39 +190,7 @@ export const info = {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// 6. UPTIME
-// ═══════════════════════════════════════════════════════════════════
-export const uptime = {
-  name: 'uptime',
-  aliases: ['up'],
-  async run(ctx) {
-    await ctx.react('⏱️');
-    
-    const ms = Date.now() - startTime;
-    const days = Math.floor(ms / 86400000);
-    const hours = Math.floor((ms % 86400000) / 3600000);
-    const minutes = Math.floor((ms % 3600000) / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-
-    const text = `*╭─❍══ ⃟ ⃟ ⃟   𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇   ⃟ ⃟ ⃟══⊷❍*
-┇◆╭┉┉┉┉┉┉┉┉┉┉━┈⊷
-┇◆┋⏱️ *𝐁𝐎𝐓 𝐔𝐏𝐓𝐈𝐌𝐄*
-┇◆┋
-┇◆┋📅 *Days:* ${days}
-┇◆┋🕐 *Hours:* ${hours}
-┇◆┋⏱️ *Mins:* ${minutes}
-┇◆┋⏳ *Secs:* ${seconds}
-┇◆╰┉┉┉┉┉┉┉┉┉┉┉┉┉━┈⊷
-╰═══════════════════⍟
-
-> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇`;
-
-    await ctx.send({ text, contextInfo: getContextInfo() });
-  },
-};
-
-// ═══════════════════════════════════════════════════════════════════
-// 7. SABA (Special Tribute)
+// 7. SABA
 // ═══════════════════════════════════════════════════════════════════
 export const saba = {
   name: 'saba',
