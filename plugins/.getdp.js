@@ -1,13 +1,13 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 📸 GETDP.JS — Profile Picture Downloader
+ * 📸 GETDP.JS — Smart Profile Picture Downloader
  * ═══════════════════════════════════════════════════════════════════
- * Fetch Display Picture (DP) of any user
+ * Fetches DP, checks if number exists, and falls back to Status.
  */
 
 import logger from '../utils/logger.js';
 
-// 🚀 View Channel Context (Forwarded Style)
+// 🚀 View Channel Context
 const getContextInfo = () => {
   return {
     forwardingScore: 999,
@@ -20,64 +20,83 @@ const getContextInfo = () => {
   };
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// GETDP COMMAND
-// ═══════════════════════════════════════════════════════════════════
 export const getdp = {
   name: 'getdp',
   aliases: ['dp', 'profilepic', 'getpp'],
   async run(ctx) {
     let target = ctx.args[0];
     
-    // Agar koi number nahi diya, toh check karein ke kisi ko tag kiya hai ya nahi
     const mentioned = ctx.msg.message?.extendedTextMessage?.contextInfo?.participant;
-    if (!target && mentioned) {
-      target = mentioned;
-    }
-    
-    // Agar tag bhi nahi kiya, toh sender ka hi DP nikal lein
-    if (!target) {
-      target = ctx.sender;
-    }
+    if (!target && mentioned) target = mentioned;
+    if (!target) target = ctx.sender;
 
-    // Number ko clean karein (sirf digits rakhein)
     const cleanNum = target.replace(/\D/g, '');
     
-    if (!cleanNum) {
+    if (!cleanNum || cleanNum.length < 10) {
       return ctx.reply(`> ❌ *Please provide a valid phone number.*\n> Example: ${ctx.prefix}getdp 923001234567`);
     }
 
     const jid = `${cleanNum}@s.whatsapp.net`;
-    
-    // Loading reaction
     await ctx.react('📸');
 
     try {
-      // 🚀 Baileys function to fetch DP
-      const ppUrl = await ctx.sock.profilePictureUrl(jid, 'image');
+      // 🚀 1. Check if the number is actually on WhatsApp
+      const [result] = await ctx.sock.onWhatsApp(jid);
       
-      // Caption exactly like the screenshot with ARSLAN MDX branding
-      const caption = `> *Profile Pic Downloaded*
+      if (!result || !result.exists) {
+        await ctx.react('❌');
+        return ctx.reply(`> ❌ *Number +${cleanNum} is not registered on WhatsApp.*`);
+      }
+
+      // 🚀 2. Try to fetch Profile Picture
+      let ppUrl = null;
+      try {
+        ppUrl = await ctx.sock.profilePictureUrl(jid, 'image');
+      } catch (e) {
+        // DP hidden or not set, we will catch this and fallback
+      }
+
+      if (ppUrl) {
+        // ✅ DP Found
+        const caption = `> *Profile Pic Downloaded*
 > *Successfully* ✅
 
 *User:* ${cleanNum}
 
 > © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇`;
 
-      await ctx.send({
-        image: { url: ppUrl },
-        caption: caption,
-        contextInfo: getContextInfo()
-      });
-      
+        await ctx.send({
+          image: { url: ppUrl },
+          caption: caption,
+          contextInfo: getContextInfo()
+        });
+      } else {
+        // ⚠️ DP Hidden: Fallback to fetching Status (About)
+        let statusText = 'Hidden / Not Set';
+        try {
+          const status = await ctx.sock.fetchStatus(jid);
+          if (status && status.status) statusText = status.status;
+        } catch (e) {
+          // Status is also hidden
+        }
+
+        const fallbackCaption = `> ⚠️ *Profile Pic Hidden*
+> The user has restricted their DP via privacy settings.
+
+*User:* ${cleanNum}
+*Status/About:* ${statusText}
+
+> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇`;
+
+        await ctx.send({ text: fallbackCaption, contextInfo: getContextInfo() });
+      }
+
       await ctx.react('✅');
       
     } catch (error) {
       await ctx.react('❌');
-      
-      // Agar DP nahi mili ya privacy settings ne block kar diya
-      const errMsg = `> ❌ *No profile picture found.*\n> The user might not have a DP or it's hidden by privacy settings.\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇`;
-      ctx.reply(errMsg);
+      logger.error(`[GETDP] Error: ${error.message}`);
+      ctx.reply(`> ❌ *Error:* ${error.message}\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇`);
     }
   }
 };
