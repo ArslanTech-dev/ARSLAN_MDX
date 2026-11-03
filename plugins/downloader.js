@@ -2,10 +2,10 @@
  * ═══════════════════════════════════════════════════════════════════
  * 📥 DOWNLOADER.JS — ARSLAN MDX Downloader Commands
  * ═══════════════════════════════════════════════════════════════════
- * Powered by @kelvdra/scraper (No API Key Needed)
+ * Fixed: @kelvdra/scraper yts + ytmp3 structure with API fallback
  */
 
-import { ytmp3, search } from '@kelvdra/scraper';
+import { playmp3, ytmp3, search } from '@kelvdra/scraper';
 
 // 🚀 View Channel Context (Forwarded Style)
 const getContextInfo = () => {
@@ -38,8 +38,7 @@ export const play = {
   aliases: ['song', 'music', 'ytmp3'],
   async run(ctx) {
     let query = ctx.args.join(' ');
-    
-    // 🎲 Random Search Logic
+
     if (!query) {
       query = randomSongs[Math.floor(Math.random() * randomSongs.length)];
       await ctx.reply(`> 🎲 *Random Song Selected*\n> ╰─➤ Searching: \`${query}\``);
@@ -47,30 +46,59 @@ export const play = {
 
     await ctx.react('⏳');
 
+    let title, author, duration, views, audioUrl;
+
     try {
-      // 🚀 1. Search the song on YouTube
-      const searchResults = await search(query, { limit: 1 });
-      
-      if (!searchResults || searchResults.length === 0) {
-        throw new Error('Song not found.');
+      // 🚀 METHOD 1: Try playmp3 (Direct Search + Download)
+      try {
+        const data = await playmp3(query);
+        title = data.title || data.result?.title;
+        author = data.author || data.result?.author;
+        duration = data.duration || data.result?.duration;
+        views = data.views || data.result?.views;
+        audioUrl = data.audio || data.dl_url || data.url || data.download_url || data.result?.audio || data.result?.dl_url;
+      } catch (e) {
+        // Method 1 failed, try Method 2
       }
 
-      const video = searchResults[0];
-      const videoUrl = video.url;
-      
-      // 🚀 2. Download the audio
-      const audioData = await ytmp3(videoUrl);
+      // 🚀 METHOD 2: Search + ytmp3
+      if (!audioUrl) {
+        const searchRes = await search(query);
+        
+        // Handle both { videos: [...] } and direct array
+        const videos = searchRes.videos ? searchRes.videos : (Array.isArray(searchRes) ? searchRes : []);
+        if (!videos || videos.length === 0) throw new Error('No search results found.');
 
-      if (!audioData || !audioData.dl_url) {
-        throw new Error('Failed to download audio.');
+        const video = videos[0];
+        const videoUrl = video.url || `https://youtube.com/watch?v=${video.videoId}`;
+        
+        const data = await ytmp3(videoUrl);
+        title = data.title || video.title;
+        author = data.author || video.author;
+        duration = data.duration || video.duration;
+        views = data.views || video.views;
+        audioUrl = data.audio || data.dl_url || data.url || data.download_url;
       }
+
+      // 🚀 METHOD 3: Fallback to API if both above failed
+      if (!audioUrl) {
+        const res = await fetch(`https://api.nexoracle.com/downloader/yt-play?q=${encodeURIComponent(query)}&apikey=free_key@maher_apis`);
+        const apiData = await res.json();
+        if (apiData.status && apiData.result) {
+          title = apiData.result.title;
+          author = apiData.result.author;
+          duration = apiData.result.duration;
+          views = apiData.result.views;
+          audioUrl = apiData.result.audio;
+        }
+      }
+
+      if (!audioUrl) throw new Error('Failed to get audio download link.');
 
       await ctx.react('✅');
 
-      const { title, author, duration, views, dl_url } = audioData;
-
       // ═══════════════════════════════════════════════════════
-      // 🎨 EXACT NAWAZ MD STYLE TEMPLATE
+      // 🎨 EXACT ARSLAN MDX STYLE TEMPLATE
       // ═══════════════════════════════════════════════════════
       const caption = `*╭─❍══ ⃟ ⃟ ⃟   𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇   ⃟ ⃟ ⃟══⊷❍*
 ┇◆╭┉┉┉┉┉┉┉┉┉┉━┈⊷
@@ -86,9 +114,8 @@ export const play = {
 
 > © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇`;
 
-      // 🚀 3. Send the audio file
       await ctx.send({
-        audio: { url: dl_url },
+        audio: { url: audioUrl },
         mimetype: 'audio/mp4',
         fileName: `${title || 'audio'}.mp3`,
         caption: caption,
@@ -108,7 +135,7 @@ export const play = {
 ╰═══════════════════⍟
 
 > © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇`;
-                     
+
       await ctx.send({ text: errMsg, contextInfo: getContextInfo() });
     }
   },
