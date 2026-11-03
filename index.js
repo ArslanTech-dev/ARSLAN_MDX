@@ -82,7 +82,6 @@ export async function initSessionManager() {
   if (storedSessions.length > 0) {
     logger.info(`🔄 Found ${storedSessions.length} saved session(s). Auto-reconnecting...`);
     for (const number of storedSessions) {
-      // Auto-connect par welcome message nahi jayega (isNew = false)
       startBotForUser(number, false).catch((err) => {
         logger.error(`[Auto-Connect] Failed for ${number}:`, err.message);
       });
@@ -126,11 +125,15 @@ async function sendWelcomeMessage(sock, number) {
         });
         logger.success(`🖼️ Welcome Image Sent to: ${number}`);
         await sleep(1000);
-      } catch (imgErr) {}
+      } catch (imgErr) {
+        logger.error(`Image send error: ${imgErr.message}`);
+      }
     }
     await sock.sendMessage(selfJid, { text: CONFIG.WELCOME_MESSAGE });
     logger.success(`📩 Welcome Text Sent to: ${number}`);
-  } catch (err) {}
+  } catch (err) {
+    logger.error(`Welcome Message Failed: ${err.message}`);
+  }
 }
 
 export async function startBotForUser(number, isNew = false) {
@@ -176,16 +179,9 @@ export async function startBotForUser(number, isNew = false) {
   sock.ev.on('messages.upsert', async (m) => {
     for (const msg of m.messages) {
       if (!msg.message) continue; 
-      
-      // Debug log
-      const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
-      if (text) logger.info(`[RAW] Msg: "${text}" | from: ${msg.key.remoteJid} | fromMe: ${msg.key.fromMe}`);
-
       try {
         await handleMessage(sock, msg, number);
-      } catch (err) {
-        logger.error(`[RAW] handleMessage error:`, err.message);
-      }
+      } catch (err) {}
     }
   });
 
@@ -199,13 +195,8 @@ export async function startBotForUser(number, isNew = false) {
       try {
         let waitAttempts = 0;
         while (!pairingReady && waitAttempts < 10) {
-          logger.info(`[Pairing] Waiting for pair-device event... (${waitAttempts + 1}/10)`);
           await sleep(500);
           waitAttempts++;
-        }
-
-        if (!pairingReady) {
-          logger.warn(`[Pairing] pair-device timeout. Proceeding with fallback...`);
         }
 
         const raw = await sock.requestPairingCode(number);
@@ -213,7 +204,6 @@ export async function startBotForUser(number, isNew = false) {
         logger.success(`\n🔐 [PAIRING] Code: ${code}\n`);
         pending.resolve(code);
       } catch (err) {
-        logger.error('[Pairing] Failed:', err.message);
         pending.reject(new Error(`Pairing failed: ${err.message}`));
       } finally {
         pendingPairings.delete(number);
@@ -227,10 +217,10 @@ export async function startBotForUser(number, isNew = false) {
       sessionStatus.set(number, { status: 'connected', since: Date.now() });
       await setUser(number, { number, jid: sock.user?.id, name: sock.user?.name || '', status: 'connected' });
       
-      // 🚀 WELCOME MESSAGE LOGIC: Sirf naye pairing par bhejenge
+      // 🚀 WELCOME MESSAGE LOGIC (Fixed)
       if (isNew) {
         logger.info(`📩 Sending Welcome to NEW pairing: ${number}`);
-        await sleep(2000);
+        await sleep(3000); // 3 second delay to ensure WhatsApp is fully ready
         await sendWelcomeMessage(sock, number);
         isNew = false;
       }
@@ -244,7 +234,6 @@ export async function startBotForUser(number, isNew = false) {
       sessionStatus.delete(number);
 
       if (code === 405) {
-        logger.error(`⚠️ [405] Method Not Allowed for ${number}. Aborting.`);
         await deleteSession(number);
         return;
       }
@@ -252,12 +241,10 @@ export async function startBotForUser(number, isNew = false) {
       if (code === DisconnectReason.loggedOut) {
         await deleteSession(number);
         await removeUser(number);
-        logger.warn(`🗑️ [401] Logged out & purged: ${number}`);
         return;
       }
 
       if (code === 515) {
-        logger.info(`🔄 [515] Pairing accepted. Reconnecting...`);
         setTimeout(() => { startBotForUser(number, false).catch(() => {}); }, 3000);
         return;
       }
@@ -265,15 +252,10 @@ export async function startBotForUser(number, isNew = false) {
       if (!hasOpenedOnce) {
         await deleteSession(number);
         const pending = pendingPairings.get(number);
-        if (pending) {
-          pending.reject(new Error('Pairing failed. Generate a new code.'));
-          pendingPairings.delete(number);
-        }
-        logger.warn(`[Pairing] ${number} never opened (code ${code}).`);
+        if (pending) pending.reject(new Error('Pairing failed.'));
         return;
       }
 
-      logger.info(`🔄 Reconnecting ${number} in 3s...`);
       setTimeout(() => { startBotForUser(number, false).catch(() => {}); }, 3000);
     }
   });
@@ -289,7 +271,6 @@ export async function createPairingCode(number) {
       resolve: (c) => { clearTimeout(timeout); resolve(c); },
       reject: (e) => { clearTimeout(timeout); reject(e); },
     });
-    // 🚀 Naya pairing hai, isliye isNew = true
     startBotForUser(number, true).catch((err) => { clearTimeout(timeout); pendingPairings.delete(number); reject(err); });
   });
 }
