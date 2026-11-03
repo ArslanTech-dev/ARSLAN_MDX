@@ -1,11 +1,12 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 👁️ VIEWONCE.JS — View Once Bypass (ES Modules)
+ * 👁️ VIEWONCE.JS — View Once Bypass (Universal Fix)
  * ═══════════════════════════════════════════════════════════════════
- * Commands: .vv (download & resend)
+ * Handles viewOnceMessage, viewOnceMessageV2, viewOnceMessageV2Extension,
+ * and standard imageMessage/videoMessage with viewOnce flag.
  */
 
-import { downloadContentFromMessage } from '@whiskeysockets/baileys';
+import { downloadContentFromMessage, normalizeMessageContent } from '@whiskeysockets/baileys';
 import logger from '../utils/logger.js';
 
 // 🚀 View Channel Context (Forwarded Style)
@@ -21,7 +22,7 @@ const getContextInfo = () => {
   };
 };
 
-// ─── HELPER: Download media from view-once message ───
+// ─── HELPER: Download media from message ───
 const downloadMedia = async (mediaKey, mediaType) => {
     const stream = await downloadContentFromMessage(mediaKey, mediaType);
     let buffer = Buffer.from([]);
@@ -31,16 +32,20 @@ const downloadMedia = async (mediaKey, mediaType) => {
     return buffer;
 };
 
-// ─── HELPER: Extract View-Once Content (V1 & V2) ───
-function extractViewOnce(quotedMsg) {
-    let vvMsg = null;
-    if (quotedMsg.viewOnceMessage) vvMsg = quotedMsg.viewOnceMessage.message;
-    else if (quotedMsg.viewOnceMessageV2) vvMsg = quotedMsg.viewOnceMessageV2.message;
-    else if (quotedMsg.viewOnceMessageV2Extension) vvMsg = quotedMsg.viewOnceMessageV2Extension.message;
+// ─── HELPER: Extract Media Content (Universal) ───
+function extractMedia(quotedMsg) {
+    // 1. Normalize the message to unwrap viewOnceMessage, viewOnceMessageV2, etc.
+    let normalized = normalizeMessageContent(quotedMsg);
     
-    if (!vvMsg) return null;
-    const type = Object.keys(vvMsg)[0];
-    return { type, content: vvMsg[type] };
+    // If normalization returns null, fallback to direct object
+    if (!normalized) normalized = quotedMsg;
+
+    // 2. Check for media types directly
+    if (normalized.imageMessage) return { type: 'image', content: normalized.imageMessage };
+    if (normalized.videoMessage) return { type: 'video', content: normalized.videoMessage };
+    if (normalized.audioMessage) return { type: 'audio', content: normalized.audioMessage };
+
+    return null;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -54,22 +59,24 @@ export const vv = {
       const quotedMsg = ctx.msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
       
       if (!quotedMsg) {
-        return ctx.reply(`> ❌ *Reply to a View-Once photo/video/voice.*`);
+        return ctx.reply(`> ❌ *Reply to a photo, video, or voice note.*`);
       }
 
-      const vvData = extractViewOnce(quotedMsg);
-      if (!vvData) {
-        return ctx.reply(`> ❌ *This is not a View-Once message.*`);
+      const mediaData = extractMedia(quotedMsg);
+      
+      if (!mediaData) {
+        return ctx.reply(`> ❌ *No media found in the replied message.*`);
       }
 
       await ctx.react('⏳');
 
-      const { type, content } = vvData;
+      const { type, content } = mediaData;
+      
       let caption = `*╭─❍══ ⃟ ⃟ ⃟   𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇   ⃟ ⃟ ⃟══⊷❍*
 ┇◆╭┉┉┉┉┉┉┉┉┉┉━┈⊷
 ┇◆┋🔓 *𝐕𝐈𝐄𝐖-𝐎𝐍𝐂𝐄 𝐁𝐘𝐏𝐀𝐒𝐒*
 ┇◆┋
-┇◆┋📁 *Type:* ${type.replace('Message', '').toUpperCase()}
+┇◆┋📁 *Type:* ${type.toUpperCase()}
 ┇◆╰┉┉┉┉┉┉┉┉┉┉┉┉┉━┈⊷
 ╰═══════════════════⍟
 
@@ -80,15 +87,15 @@ export const vv = {
       }
 
       // Handle Media Types
-      if (type === 'imageMessage') {
+      if (type === 'image') {
         const buffer = await downloadMedia(content, 'image');
         await ctx.send({ image: buffer, caption, contextInfo: getContextInfo() });
       } 
-      else if (type === 'videoMessage') {
+      else if (type === 'video') {
         const buffer = await downloadMedia(content, 'video');
         await ctx.send({ video: buffer, caption, contextInfo: getContextInfo() });
       } 
-      else if (type === 'audioMessage') {
+      else if (type === 'audio') {
         const buffer = await downloadMedia(content, 'audio');
         await ctx.send({ 
             audio: buffer, 
@@ -96,19 +103,9 @@ export const vv = {
             ptt: true, 
             contextInfo: getContextInfo() 
         });
-      } 
-      else if (type === 'conversation' || type === 'extendedTextMessage') {
-        const text = content.text || content;
-        await ctx.send({ 
-            text: `*╭─❍══ ⃟ ⃟ ⃟   𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇   ⃟ ⃟ ⃟══⊷❍*\n┇◆╭┉┉┉┉┉┉┉┉┉┉━┈⊷\n┇◆┋🔓 *VIEW-ONCE TEXT*\n┇◆┋\n┇◆┋${text}\n┇◆╰┉┉┉┉┉┉┉┉┉┉┉┉┉━┈⊷\n╰═══════════════════⍟`, 
-            contextInfo: getContextInfo() 
-        });
-      } 
-      else {
-        return ctx.reply(`> ❌ *Unsupported view-once type.*`);
       }
 
-      logger.success(`[VV] View-once ${type} recovered successfully.`);
+      logger.success(`[VV] ${type} recovered successfully.`);
       await ctx.react('✅');
 
     } catch (err) {
