@@ -54,11 +54,9 @@ export const tt = {
     try {
       const data = await tiktok(url);
       
-      // Get video URL
+      // Handle various possible response structures
       let videoUrl = data.video?.url || data.videoUrl || data.video || data.videoHd || data.videoSd;
       if (Array.isArray(videoUrl)) videoUrl = videoUrl[0];
-      
-      // If nested structure
       if (data.video && typeof data.video === 'object') {
           videoUrl = data.video.noWatermark || data.video.watermark || data.video.url;
       }
@@ -99,7 +97,6 @@ export const insta = {
     try {
       const data = await instagram(url);
       
-      // Extract media from items
       let mediaUrl = null;
       let isVideo = false;
       
@@ -113,7 +110,7 @@ export const insta = {
           isVideo = item.type === 'video';
       } else if (data.url) {
           mediaUrl = data.url;
-          isVideo = true; // Assume video for reels
+          isVideo = true;
       }
 
       if (!mediaUrl) throw new Error('Could not extract media URL.');
@@ -160,7 +157,6 @@ export const fb = {
     try {
       const data = await facebook(url);
       
-      // Get video URL (HD preferred)
       let videoUrl = data.hd || data.sd || data.videoUrl || data.video;
       if (Array.isArray(videoUrl)) videoUrl = videoUrl[0];
       if (data.video && typeof data.video === 'object') {
