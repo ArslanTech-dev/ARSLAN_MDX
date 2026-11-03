@@ -1,3 +1,9 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * 🧩 MESSAGE.JS — Ultimate Plugin Router & Event Interceptor
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -30,9 +36,7 @@ export async function loadPlugins() {
         }
         count++;
       }
-    } catch (err) {
-      logger.error(`[Plugin] Failed to load (${file}):`, err.message);
-    }
+    } catch (err) {}
   }
   loaded = true;
   logger.success(`Total Plugins Loaded: ${count}`);
@@ -62,6 +66,7 @@ async function handleAntilink(sock, msg, from, sender, text, sessionNumber) {
   }
 }
 
+// 🚀 ANTIDELETE (Sends to Bot's Own DM)
 async function handleAntidelete(sock, updates, sessionNumber) {
   try {
     const db = await readDb();
@@ -79,10 +84,27 @@ async function handleAntidelete(sock, updates, sessionNumber) {
       if (isOwner(sender) || originalMsg.key.fromMe) continue;
 
       const text = extractText(originalMsg);
-      const header = `*╭┈──〔 ANTI-DELETE 〕─⊷*\n*├▢ 👤 Sender:* @${cleanJid(sender)}\n*├▢ 📍 Chat:* ${isGroup(from) ? 'Group' : 'DM'}\n*├▢ 🕒 Time:* ${nowTime()}\n*├▢ 📝 Message:*`;
+      
+      // 🚀 Send to Bot's Own DM instead of the chat
+      const botJid = sock.user?.id?.split(':')[0] + '@s.whatsapp.net';
+      
+      const header = `*╭─❍══ ⃟ ⃟ ⃟   𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇   ⃟ ⃟ ⃟══⊷❍*
+┇◆╭┉┉┉┉┉┉┉┉┉┉━┈⊷
+┇◆┋🗑️ *ANTI-DELETE*
+┇◆┋
+┇◆┋👤 *Sender:* @${cleanJid(sender)}
+┇◆┋📍 *Chat:* ${isGroup(from) ? 'Group' : 'DM'}
+┇◆┋🕒 *Time:* ${nowTime()}
+┇◆┋
+┇◆┋📝 *Message:*
+┇◆┋${text}
+┇◆╰┉┉┉┉┉┉┉┉┉┉┉┉┉━┈⊷
+╰═══════════════════⍟
+
+> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇`;
 
       if (text) {
-        await sock.sendMessage(from, { text: `${header}\n${text}\n*╰───────────────⊷*`, mentions: [sender] });
+        await sock.sendMessage(botJid, { text: header, mentions: [sender] });
       }
       messageCache.delete(msgId);
     }
@@ -98,7 +120,7 @@ async function handleAntiCall(sock, calls, sessionNumber) {
       if (call.status === 'offer') {
         await sock.rejectCall(call.id, call.from);
         await sock.sendMessage(call.from, { 
-          text: `*╭┈──〔 ANTI-CALL 〕─⊷*\n*├▢ 📵 Calls are auto-rejected.*\n*╰───────────────⊷*` 
+          text: `> 📵 Calls are auto-rejected.` 
         });
       }
     }
@@ -113,7 +135,7 @@ async function handleGroupParticipants(sock, update, sessionNumber) {
     if (action === 'add' && settings.welcome) {
       const meta = await sock.groupMetadata(id);
       for (const jid of participants) {
-        const caption = `*╭┈──〔 WELCOME 〕─⊷*\n*├▢ 💚 Hey @${cleanJid(jid)}!*\n*├▢ 🎀 Welcome to *${meta.subject}*\n*├▢ 👥 Members: ${meta.participants.length}\n*╰───────────────⊷*`;
+        const caption = `> 💚 Hey @${cleanJid(jid)}!\n> 🎀 Welcome to *${meta.subject}*`;
         await sock.sendMessage(id, { text: caption, mentions: [jid] });
       }
     }
@@ -121,11 +143,21 @@ async function handleGroupParticipants(sock, update, sessionNumber) {
     if (action === 'remove' && settings.goodbye) {
       const meta = await sock.groupMetadata(id);
       for (const jid of participants) {
-        const caption = `*╭┈──〔 GOODBYE 〕─⊷*\n*├▢ 💔 @${cleanJid(jid)} has left*\n*├▢ 👥 Remaining: ${meta.participants.length}\n*╰───────────────⊷*`;
+        const caption = `> 💔 @${cleanJid(jid)} has left the group.`;
         await sock.sendMessage(id, { text: caption, mentions: [jid] });
       }
     }
   } catch (err) {}
+}
+
+// 🚀 MENTION FIX: Regex to automatically mention @numbers
+function getMentions(text) {
+  const mentions = [];
+  const matches = text.match(/@(\d+)/g);
+  if (matches) {
+    matches.forEach(m => mentions.push(`${m.slice(1)}@s.whatsapp.net`));
+  }
+  return mentions;
 }
 
 export async function handleMessage(sock, msg, sessionNumber) {
@@ -139,10 +171,7 @@ export async function handleMessage(sock, msg, sessionNumber) {
     const text = extractText(msg);
     const owner = isOwner(sender);
 
-    // 🚀 SPAM FILTER (Removed @lid so DMs work)
-    if (from === 'status@broadcast' || from.endsWith('@newsletter')) {
-      return;
-    }
+    if (from === 'status@broadcast' || from.endsWith('@newsletter')) return;
 
     messageCache.set(msg.key.id, { msg, from, sender });
     if (messageCache.size > 500) messageCache.delete(messageCache.keys().next().value);
@@ -177,9 +206,20 @@ export async function handleMessage(sock, msg, sessionNumber) {
       sock, msg, from, sender, isGroup: group, isOwner: owner,
       args, text, command: plugin.name, prefix, sessionNumber,
       botNumber: sock.user?.id?.split(':')[0],
-      reply: (t, opts = {}) => sock.sendMessage(from, { text: t, ...opts }, { quoted: msg }),
+      
+      // 🚀 Fixed Reply & Send with Auto-Mention parsing
+      reply: (t, opts = {}) => {
+        const autoMentions = getMentions(t);
+        if (autoMentions.length > 0) opts.mentions = [...(opts.mentions || []), ...autoMentions];
+        return sock.sendMessage(from, { text: t, ...opts }, { quoted: msg });
+      },
+      send: (content, opts = {}) => {
+        const txt = content.text || content.caption || '';
+        const autoMentions = getMentions(txt);
+        if (autoMentions.length > 0) opts.mentions = [...(opts.mentions || []), ...autoMentions];
+        return sock.sendMessage(from, content, { quoted: msg, ...opts });
+      },
       react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } }).catch(() => {}),
-      send: (content, opts = {}) => sock.sendMessage(from, content, { quoted: msg, ...opts }),
     };
 
     try { await sock.readMessages([msg.key]); } catch {}
@@ -189,9 +229,7 @@ export async function handleMessage(sock, msg, sessionNumber) {
     } catch (err) {
       logger.error(`[${sessionNumber}] [${plugin.name}] ${err.message}`);
     }
-  } catch (err) {
-    logger.error(`[${sessionNumber}] handleMessage error: ${err.message}`);
-  }
+  } catch (err) {}
 }
 
 export function setupEvents(sock, sessionNumber) {
