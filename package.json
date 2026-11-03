@@ -20,7 +20,7 @@
     
     "@distube/ytdl-core": "^4.13.5",
     "yt-search": "^2.12.1",
-    "@xazepysk/scrapers": "^1.0.5",
+    "@xazepysk/scrapers": "^0.0.1",
     "axios": "^1.7.9",
     "cheerio": "^1.0.0"
   },
