@@ -68,21 +68,7 @@ export const love = {
   }
 };
 
-// ── 12: Cloud / Dreamy Style (For Kiss) ──
-export const kiss = {
-  name: 'kiss', aliases: ['muah', 'pappi'],
-  async run(ctx) {
-    logger.info(`[Command] .kiss triggered`);
-    const target = getTarget(ctx);
-    await ctx.react('💋');
-    const gifUrl = await fetchGif('kiss');
-    
-    const text = `☁️ ｡ﾟ☁︎｡\n✧ *K I S S* ✧\n☁️ ｡ﾟ☁︎｡\n\n👤 @${ctx.senderNumber} kissed\n👤 @${target}\n\n☁️ ｡ﾟ☁︎｡`;
 
-    if (gifUrl) await ctx.send({ video: { url: gifUrl }, gifPlayback: true, caption: text, mentions: [ctx.sender, `${target}@s.whatsapp.net`] });
-    else await ctx.send({ text, mentions: [ctx.sender, `${target}@s.whatsapp.net`] });
-  }
-};
 
 // ── 12: Cloud / Dreamy Style (For Cuddle) ──
 export const cuddle = {
