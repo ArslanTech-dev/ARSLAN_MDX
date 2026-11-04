@@ -1,8 +1,8 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🌸 ANIME.JS — ARSLAN MDX Anime Kiss (Direct MP4)
+ * 🌸 ANIME.JS — ARSLAN MDX Anime Kiss (Direct Giphy MP4)
  * ═══════════════════════════════════════════════════════════════════
- * Uses Tenor API to get direct MP4 URLs for guaranteed playback.
+ * Uses Giphy MP4 URLs for guaranteed WhatsApp playback.
  */
 
 import logger from '../utils/logger.js';
@@ -20,6 +20,18 @@ const getContextInfo = () => {
   };
 };
 
+// 🎬 Giphy MP4 URLs (Direct video format for WhatsApp)
+// Note: Humne .gif ki jagah .mp4 laga diya hai taake WhatsApp isko perfect play kare.
+const kissGifs = [
+  'https://media.giphy.com/media/G3va31oEEnIkM/giphy.mp4',
+  'https://media.giphy.com/media/zkppEMFvRX5FC/giphy.mp4',
+  'https://media.giphy.com/media/l4FGuhL4U2WyjdkaY/giphy.mp4',
+  'https://media.giphy.com/media/12VXIxKaIEarL2/giphy.mp4',
+  'https://media.giphy.com/media/xUySTCDX1GZk8jO5sY/giphy.mp4',
+  'https://media.giphy.com/media/3ohs4BSacFKI7A717y/giphy.mp4',
+  'https://media.giphy.com/media/W3QKEujo8vztC/giphy.mp4'
+];
+
 export const kiss = {
   name: 'kiss',
   aliases: ['animekiss', 'kissgif'],
@@ -28,53 +40,17 @@ export const kiss = {
     
     const mentioned = ctx.msg.message?.extendedTextMessage?.contextInfo?.participant;
     
-    let mp4Url = null;
-
-    // 🚀 1. Fetch direct MP4 from Tenor API
-    try {
-      const res = await fetch(`https://g.tenor.com/v1/search?q=anime+kiss&key=LIVDSRZULELA&limit=1&media_filter=minimal`, {
-        signal: AbortSignal.timeout(10000)
-      });
-      const data = await res.json();
-      
-      // Tenor returns an array of results
-      if (data.results && data.results.length > 0) {
-        // Extract the MP4 url
-        mp4Url = data.results[0].media[0].mp4.url;
-      }
-    } catch (e) {
-      logger.warn(`[ANIME] Tenor API failed: ${e.message}`);
-    }
-
-    // 🚀 2. Fallback (Agar Tenor fail ho jaye toh waifu.pics ka use karein)
-    if (!mp4Url) {
-      try {
-        const res = await fetch('https://api.waifu.pics/sfw/kiss', {
-          signal: AbortSignal.timeout(8000)
-        });
-        const data = await res.json();
-        if (data.url) {
-            // Note: Waifu.pics returns gif, but WhatsApp might still try to play it
-            mp4Url = data.url; 
-        }
-      } catch (e) {
-        logger.warn(`[ANIME] Waifu.pics fallback failed: ${e.message}`);
-      }
-    }
-
-    if (!mp4Url) {
-      await ctx.react('❌');
-      return ctx.reply(`❌ Failed to fetch GIF. Try again.`);
-    }
+    // Randomly pick one GIF
+    const randomGif = kissGifs[Math.floor(Math.random() * kissGifs.length)];
 
     try {
       // 🎨 Simple Caption
       const caption = `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳`;
 
-      // 🚀 3. Send as Video with gifPlayback
+      // 🚀 Send as Video with gifPlayback flag
       await ctx.send({
-        video: { url: mp4Url },
-        mimetype: 'video/mp4', // Force MP4 mimetype
+        video: { url: randomGif },
+        mimetype: 'video/mp4',
         gifPlayback: true,
         caption: caption,
         mentions: mentioned ? [mentioned] : [ctx.sender],
