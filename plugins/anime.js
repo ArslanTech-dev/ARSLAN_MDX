@@ -1,18 +1,11 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🌸 ANIME.JS — ARSLAN MDX Anime Reactions (MP4 Converter)
+ * 🌸 ANIME.JS — ARSLAN MDX Anime Kiss (Direct MP4)
  * ═══════════════════════════════════════════════════════════════════
+ * Uses Tenor API to get direct MP4 URLs for guaranteed playback.
  */
 
-import fs from 'fs-extra';
-import path from 'path';
-import { Readable } from 'stream';
-import ffmpeg from 'fluent-ffmpeg';
-import ffmpegPath from 'ffmpeg-static';
 import logger from '../utils/logger.js';
-
-// 🚀 Set FFmpeg Path
-ffmpeg.setFfmpegPath(ffmpegPath);
 
 // 🚀 View Channel Context
 const getContextInfo = () => {
@@ -27,22 +20,6 @@ const getContextInfo = () => {
   };
 };
 
-// 🚀 Helper: Convert GIF Buffer to MP4 Buffer
-const convertGifToMp4 = (gifBuffer) => {
-    return new Promise((resolve, reject) => {
-        const chunks = [];
-        const stream = Readable.from(gifBuffer);
-
-        ffmpeg(stream)
-            .outputFormat('mp4')
-            .videoCodec('libx264') // Best codec for WhatsApp
-            .on('data', (chunk) => chunks.push(chunk))
-            .on('end', () => resolve(Buffer.concat(chunks)))
-            .on('error', (err) => reject(err))
-            .run();
-    });
-};
-
 export const kiss = {
   name: 'kiss',
   aliases: ['animekiss', 'kissgif'],
@@ -51,38 +28,53 @@ export const kiss = {
     
     const mentioned = ctx.msg.message?.extendedTextMessage?.contextInfo?.participant;
     
-    let gifUrl = null;
+    let mp4Url = null;
 
-    // 1. API Fetch
+    // 🚀 1. Fetch direct MP4 from Tenor API
     try {
-      const res = await fetch('https://api.waifu.pics/sfw/kiss', {
+      const res = await fetch(`https://g.tenor.com/v1/search?q=anime+kiss&key=LIVDSRZULELA&limit=1&media_filter=minimal`, {
         signal: AbortSignal.timeout(10000)
       });
       const data = await res.json();
-      if (data.url) gifUrl = data.url;
+      
+      // Tenor returns an array of results
+      if (data.results && data.results.length > 0) {
+        // Extract the MP4 url
+        mp4Url = data.results[0].media[0].mp4.url;
+      }
     } catch (e) {
-      logger.warn(`[ANIME] Waifu.pics failed: ${e.message}`);
+      logger.warn(`[ANIME] Tenor API failed: ${e.message}`);
     }
 
-    if (!gifUrl) {
+    // 🚀 2. Fallback (Agar Tenor fail ho jaye toh waifu.pics ka use karein)
+    if (!mp4Url) {
+      try {
+        const res = await fetch('https://api.waifu.pics/sfw/kiss', {
+          signal: AbortSignal.timeout(8000)
+        });
+        const data = await res.json();
+        if (data.url) {
+            // Note: Waifu.pics returns gif, but WhatsApp might still try to play it
+            mp4Url = data.url; 
+        }
+      } catch (e) {
+        logger.warn(`[ANIME] Waifu.pics fallback failed: ${e.message}`);
+      }
+    }
+
+    if (!mp4Url) {
       await ctx.react('❌');
       return ctx.reply(`❌ Failed to fetch GIF. Try again.`);
     }
 
     try {
-      // 2. Download GIF
-      const mediaRes = await fetch(gifUrl);
-      const gifBuffer = Buffer.from(await mediaRes.arrayBuffer());
-
-      // 3. Convert GIF to MP4
-      const mp4Buffer = await convertGifToMp4(gifBuffer);
-
       // 🎨 Simple Caption
       const caption = `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳`;
 
-      // 4. Send as Video
+      // 🚀 3. Send as Video with gifPlayback
       await ctx.send({
-        video: mp4Buffer,
+        video: { url: mp4Url },
+        mimetype: 'video/mp4', // Force MP4 mimetype
         gifPlayback: true,
         caption: caption,
         mentions: mentioned ? [mentioned] : [ctx.sender],
@@ -92,9 +84,9 @@ export const kiss = {
       await ctx.react('✅');
       
     } catch (err) {
-      logger.error(`[ANIME] Conversion/Send Error: ${err.message}`);
+      logger.error(`[ANIME] Send Error: ${err.message}`);
       await ctx.react('❌');
-      await ctx.reply(`❌ Failed to process GIF.`);
+      await ctx.reply(`❌ Failed to send GIF.`);
     }
   }
 };
