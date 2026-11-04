@@ -1,17 +1,16 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🌸 ANIME.JS — ARSLAN MDX Anime Reactions
+ * 🌸 ANIME.JS — ARSLAN MDX Anime Reactions (Simple & Clean)
  * ═══════════════════════════════════════════════════════════════════
- * Kiss GIFs | Nekos.best + Waifu.pics Fallback
  */
 
 import logger from '../utils/logger.js';
 
-// 🚀 View Channel Context (Forwarded Style)
+// 🚀 View Channel Context (Optional, for the forwarded tag)
 const getContextInfo = () => {
   return {
     forwardingScore: 999,
-    isForwarded: true,
+    isForwarded: false,
     forwardedNewsletterMessageInfo: {
       newsletterJid: '120363412450457588@newsletter', 
       newsletterName: 'ARSLAN MDX',
@@ -20,9 +19,6 @@ const getContextInfo = () => {
   };
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// 1. KISS — Anime Kiss GIF
-// ═══════════════════════════════════════════════════════════════════
 export const kiss = {
   name: 'kiss',
   aliases: ['animekiss', 'kissgif'],
@@ -34,7 +30,7 @@ export const kiss = {
 
     let gifUrl = null;
 
-    // 🚀 1. Try Nekos.best
+    // 🚀 1. Try Nekos.best API
     try {
       const res = await fetch('https://nekos.best/api/v2/kiss', {
         signal: AbortSignal.timeout(8000)
@@ -64,23 +60,15 @@ export const kiss = {
 
     if (!gifUrl) {
       await ctx.react('❌');
-      return ctx.reply(`> ❌ *Could not fetch kiss GIF.* Please try again later.`);
+      return ctx.reply(`❌ Failed to fetch GIF. Try again.`);
     }
 
-    const caption = `*╭─❍══ ⃟ ⃟ ⃟   𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇   ⃟ ⃟ ⃟══⊷❍*
-┇◆╭┉┉┉┉┉┉┉┉┉┉━┈⊷
-┇◆┋💋 *𝐀𝐍𝐈𝐌𝐄 𝐊𝐈𝐒𝐒*
-┇◆┋
-┇◆┋👤 ${target} got a kiss!
-┇◆┋😘 *Vibe:* Romantic
-┇◆╰┉┉┉┉┉┉┉┉┉┉┉┉┉━┈⊷
-╰═══════════════════⍟
-
-> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇`;
+    // 🎨 SIMPLE CAPTION (As requested)
+    const caption = `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳`;
 
     await ctx.send({
       video: { url: gifUrl },
-      gifPlayback: true,
+      gifPlayback: true, // Makes the video play as a GIF
       caption: caption,
       mentions: mentioned ? [mentioned] : [ctx.sender],
       contextInfo: getContextInfo()
