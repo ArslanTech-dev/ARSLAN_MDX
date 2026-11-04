@@ -1,12 +1,12 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🌸 ANIME.JS — ARSLAN MDX Anime Reactions (Simple & Clean)
+ * 🌸 ANIME.JS — ARSLAN MDX Anime Reactions (Buffer Method)
  * ═══════════════════════════════════════════════════════════════════
  */
 
 import logger from '../utils/logger.js';
 
-// 🚀 View Channel Context (Optional, for the forwarded tag)
+// 🚀 View Channel Context
 const getContextInfo = () => {
   return {
     forwardingScore: 999,
@@ -26,35 +26,30 @@ export const kiss = {
     await ctx.react('💋');
     
     const mentioned = ctx.msg.message?.extendedTextMessage?.contextInfo?.participant;
-    const target = mentioned ? `@${mentioned.split('@')[0]}` : `@${ctx.senderNumber}`;
-
+    
     let gifUrl = null;
 
-    // 🚀 1. Try Nekos.best API
+    // 🚀 1. API Fetch (Waifu.pics is very reliable for direct GIFs)
     try {
-      const res = await fetch('https://nekos.best/api/v2/kiss', {
-        signal: AbortSignal.timeout(8000)
+      const res = await fetch('https://api.waifu.pics/sfw/kiss', {
+        signal: AbortSignal.timeout(10000)
       });
       const data = await res.json();
-      if (data.results && data.results[0]?.url) {
-        gifUrl = data.results[0].url;
-      }
+      if (data.url) gifUrl = data.url;
     } catch (e) {
-      logger.warn(`[ANIME] Nekos.best failed: ${e.message}`);
+      logger.warn(`[ANIME] Waifu.pics failed: ${e.message}`);
     }
 
-    // 🚀 2. Fallback to Waifu.pics
+    // Fallback API
     if (!gifUrl) {
       try {
-        const res = await fetch('https://api.waifu.pics/sfw/kiss', {
-          signal: AbortSignal.timeout(8000)
+        const res = await fetch('https://nekos.best/api/v2/kiss', {
+          signal: AbortSignal.timeout(10000)
         });
         const data = await res.json();
-        if (data.url) {
-          gifUrl = data.url;
-        }
+        if (data.results && data.results[0]?.url) gifUrl = data.results[0].url;
       } catch (e) {
-        logger.warn(`[ANIME] Waifu.pics failed: ${e.message}`);
+        logger.warn(`[ANIME] Nekos.best failed: ${e.message}`);
       }
     }
 
@@ -63,17 +58,28 @@ export const kiss = {
       return ctx.reply(`❌ Failed to fetch GIF. Try again.`);
     }
 
-    // 🎨 SIMPLE CAPTION (As requested)
-    const caption = `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳`;
+    try {
+      // 🚀 2. Download GIF as Buffer (Fixes playback issue)
+      const mediaRes = await fetch(gifUrl);
+      const buffer = Buffer.from(await mediaRes.arrayBuffer());
 
-    await ctx.send({
-      video: { url: gifUrl },
-      gifPlayback: true, // Makes the video play as a GIF
-      caption: caption,
-      mentions: mentioned ? [mentioned] : [ctx.sender],
-      contextInfo: getContextInfo()
-    });
+      // 🎨 Simple Caption
+      const caption = `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳`;
 
-    await ctx.react('✅');
+      // 🚀 3. Send as Video Buffer with GIF playback
+      await ctx.send({
+        video: buffer,
+        gifPlayback: true,
+        caption: caption,
+        mentions: mentioned ? [mentioned] : [ctx.sender],
+        contextInfo: getContextInfo()
+      });
+
+      await ctx.react('✅');
+    } catch (err) {
+      logger.error(`[ANIME] Send Error: ${err.message}`);
+      await ctx.react('❌');
+      await ctx.reply(`❌ Failed to play GIF.`);
+    }
   }
 };
