@@ -1,25 +1,16 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🌸 ANIME.JS — ARSLAN MDX Anime Kiss (Nekos.best + FFmpeg)
+ * 🌸 ANIME.JS — ARSLAN MDX Anime Kiss (Bulletproof)
  * ═══════════════════════════════════════════════════════════════════
- * Cloud-friendly API + GIF to MP4 conversion for perfect playback.
  */
 
-import fs from 'fs-extra';
-import path from 'path';
-import { Readable } from 'stream';
-import ffmpeg from 'fluent-ffmpeg';
-import ffmpegPath from 'ffmpeg-static';
+import axios from 'axios';
 import logger from '../utils/logger.js';
 
-// 🚀 Set FFmpeg Path
-ffmpeg.setFfmpegPath(ffmpegPath);
-
-// 🚀 View Channel Context
 const getContextInfo = () => {
   return {
     forwardingScore: 999,
-    isForwarded: false,
+    isForwarded: true,
     forwardedNewsletterMessageInfo: {
       newsletterJid: '120363412450457588@newsletter', 
       newsletterName: 'ARSLAN MDX',
@@ -28,114 +19,55 @@ const getContextInfo = () => {
   };
 };
 
-// 🚀 Helper: Convert GIF Buffer to MP4 Buffer
-const convertGifToMp4 = (gifBuffer) => {
-    return new Promise((resolve, reject) => {
-        const chunks = [];
-        const stream = Readable.from(gifBuffer);
-
-        ffmpeg(stream)
-            .outputFormat('mp4')
-            .videoCodec('libx264')
-            .on('data', (chunk) => chunks.push(chunk))
-            .on('end', () => resolve(Buffer.concat(chunks)))
-            .on('error', (err) => reject(err))
-            .run();
-    });
-};
+const kissGifs = [
+  'https://media.giphy.com/media/G3va31oEEnIkM/giphy.mp4',
+  'https://media.giphy.com/media/zkppEMFvRX5FC/giphy.mp4',
+  'https://media.giphy.com/media/l4FGuhL4U2WyjdkaY/giphy.mp4',
+  'https://media.giphy.com/media/12VXIxKaIEarL2/giphy.mp4',
+  'https://media.giphy.com/media/xUySTCDX1GZk8jO5sY/giphy.mp4'
+];
 
 export const kiss = {
   name: 'kiss',
   aliases: ['animekiss', 'kissgif'],
   async run(ctx) {
+    logger.info(`[KISS] Command triggered by ${ctx.senderNumber}`);
     await ctx.react('💋');
     
     const mentioned = ctx.msg.message?.extendedTextMessage?.contextInfo?.participant;
-    let gifBuffer = null;
+    const randomGif = kissGifs[Math.floor(Math.random() * kissGifs.length)];
 
-    // 🚀 1. Fetch GIF from Nekos.best (Cloud-friendly, no-key)
     try {
-      const res = await fetch('https://nekos.best/api/v2/kiss', {
-        signal: AbortSignal.timeout(10000)
+      logger.info(`[KISS] Downloading from: ${randomGif}`);
+      const response = await axios.get(randomGif, {
+        responseType: 'arraybuffer',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        },
+        timeout: 15000 
       });
-      const data = await res.json();
-      
-      if (data.results && data.results[0]?.url) {
-        const gifUrl = data.results[0].url;
-        // Download the GIF
-        const gifRes = await fetch(gifUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-        });
-        if (gifRes.ok) {
-          gifBuffer = Buffer.from(await gifRes.arrayBuffer());
-        }
-      }
-    } catch (e) {
-      logger.warn(`[ANIME] Nekos.best failed: ${e.message}`);
-    }
 
-    // 🚀 2. Fallback: Try Waifu.pics
-    if (!gifBuffer) {
-      try {
-        const res = await fetch('https://api.waifu.pics/sfw/kiss', {
-          signal: AbortSignal.timeout(10000)
-        });
-        const data = await res.json();
-        if (data.url) {
-          const gifRes = await fetch(data.url, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-          });
-          if (gifRes.ok) {
-            gifBuffer = Buffer.from(await gifRes.arrayBuffer());
-          }
-        }
-      } catch (e) {
-        logger.warn(`[ANIME] Waifu.pics failed: ${e.message}`);
-      }
-    }
+      const buffer = Buffer.from(response.data, 'binary');
+      logger.success(`[KISS] Buffer downloaded. Size: ${buffer.length} bytes`);
 
-    if (!gifBuffer) {
-      await ctx.react('❌');
-      return ctx.reply(`❌ Failed to fetch kiss GIF. Try again.`);
-    }
+      if (buffer.length === 0) throw new Error('Buffer is empty');
 
-    try {
-      // 🚀 3. Convert GIF to MP4 (Best for WhatsApp playback)
-      const mp4Buffer = await convertGifToMp4(gifBuffer);
-
-      // 🎨 Simple Caption
-      const caption = `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳`;
-
-      // 🚀 4. Send as Video
       await ctx.send({
-        video: mp4Buffer,
+        video: buffer,
         mimetype: 'video/mp4',
         gifPlayback: true,
-        caption: caption,
+        caption: `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳`,
         mentions: mentioned ? [mentioned] : [ctx.sender],
         contextInfo: getContextInfo()
       });
 
+      logger.success(`[KISS] GIF sent successfully.`);
       await ctx.react('✅');
       
     } catch (err) {
-      logger.error(`[ANIME] Conversion/Send Error: ${err.message}`);
-      
-      // 🚀 5. Last Resort: Send GIF buffer directly (WhatsApp may still play it)
-      try {
-        await ctx.send({
-          video: gifBuffer,
-          mimetype: 'video/mp4',
-          gifPlayback: true,
-          caption: `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳`,
-          mentions: mentioned ? [mentioned] : [ctx.sender],
-          contextInfo: getContextInfo()
-        });
-        await ctx.react('✅');
-      } catch (e) {
-        await ctx.react('❌');
-        await ctx.reply(`❌ Failed to process GIF.`);
-      }
+      logger.error(`[KISS] Error: ${err.message}`);
+      await ctx.react('❌');
+      await ctx.reply(`❌ Failed to send GIF: ${err.message}`);
     }
   }
 };
