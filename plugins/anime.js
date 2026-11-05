@@ -1,11 +1,19 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🌸 ANIME.JS — ARSLAN MDX Anime Kiss (Randomized Edition)
+ * 🌸 ANIME.JS — ARSLAN MDX Anime Kiss (Nekos.best + FFmpeg)
  * ═══════════════════════════════════════════════════════════════════
- * Fetches multiple results and picks a random one for variety.
+ * Cloud-friendly API + GIF to MP4 conversion for perfect playback.
  */
 
+import fs from 'fs-extra';
+import path from 'path';
+import { Readable } from 'stream';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegPath from 'ffmpeg-static';
 import logger from '../utils/logger.js';
+
+// 🚀 Set FFmpeg Path
+ffmpeg.setFfmpegPath(ffmpegPath);
 
 // 🚀 View Channel Context
 const getContextInfo = () => {
@@ -20,16 +28,21 @@ const getContextInfo = () => {
   };
 };
 
-const TENOR_KEY = 'LIVDSRZULELA';
+// 🚀 Helper: Convert GIF Buffer to MP4 Buffer
+const convertGifToMp4 = (gifBuffer) => {
+    return new Promise((resolve, reject) => {
+        const chunks = [];
+        const stream = Readable.from(gifBuffer);
 
-// Fallback Giphy MP4 links (multiple)
-const fallbackGifs = [
-  'https://media.giphy.com/media/zkppEMFvRX5FC/giphy.mp4',
-  'https://media.giphy.com/media/l4FGuhL4U2WyjdkaY/giphy.mp4',
-  'https://media.giphy.com/media/12VXIxKaIEarL2/giphy.mp4',
-  'https://media.giphy.com/media/xUySTCDX1GZk8jO5sY/giphy.mp4',
-  'https://media.giphy.com/media/3ohs4BSacFKI7A717y/giphy.mp4'
-];
+        ffmpeg(stream)
+            .outputFormat('mp4')
+            .videoCodec('libx264')
+            .on('data', (chunk) => chunks.push(chunk))
+            .on('end', () => resolve(Buffer.concat(chunks)))
+            .on('error', (err) => reject(err))
+            .run();
+    });
+};
 
 export const kiss = {
   name: 'kiss',
@@ -38,57 +51,80 @@ export const kiss = {
     await ctx.react('💋');
     
     const mentioned = ctx.msg.message?.extendedTextMessage?.contextInfo?.participant;
-    let mp4Url = null;
+    let gifBuffer = null;
 
-    // 🚀 1. Try Tenor API (Fetch multiple & pick random)
+    // 🚀 1. Fetch GIF from Nekos.best (Cloud-friendly, no-key)
     try {
-      const res = await fetch(
-        `https://tenor.googleapis.com/v2/search?q=anime+kiss&limit=50&key=${TENOR_KEY}&media_filter=mp4`,
-        { signal: AbortSignal.timeout(10000) }
-      );
+      const res = await fetch('https://nekos.best/api/v2/kiss', {
+        signal: AbortSignal.timeout(10000)
+      });
       const data = await res.json();
       
-      if (data.results && data.results.length > 0) {
-        // Pick a random result from the array
-        const randomIndex = Math.floor(Math.random() * data.results.length);
-        const media = data.results[randomIndex].media_formats;
-        mp4Url = media.mp4?.url || media.tinymp4?.url;
-      }
-    } catch (e) {
-      logger.warn(`[ANIME] Tenor API failed: ${e.message}`);
-    }
-
-    // 🚀 2. Fallback: Buffer from Giphy (Random from array)
-    if (!mp4Url) {
-      try {
-        const randomGif = fallbackGifs[Math.floor(Math.random() * fallbackGifs.length)];
-        const res = await fetch(randomGif, {
+      if (data.results && data.results[0]?.url) {
+        const gifUrl = data.results[0].url;
+        // Download the GIF
+        const gifRes = await fetch(gifUrl, {
           headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
         });
-        
-        if (res.ok) {
-          const buffer = Buffer.from(await res.arrayBuffer());
-          await ctx.send({
-            video: buffer,
-            mimetype: 'video/mp4',
-            gifPlayback: true,
-            caption: `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳`,
-            mentions: mentioned ? [mentioned] : [ctx.sender],
-            contextInfo: getContextInfo()
+        if (gifRes.ok) {
+          gifBuffer = Buffer.from(await gifRes.arrayBuffer());
+        }
+      }
+    } catch (e) {
+      logger.warn(`[ANIME] Nekos.best failed: ${e.message}`);
+    }
+
+    // 🚀 2. Fallback: Try Waifu.pics
+    if (!gifBuffer) {
+      try {
+        const res = await fetch('https://api.waifu.pics/sfw/kiss', {
+          signal: AbortSignal.timeout(10000)
+        });
+        const data = await res.json();
+        if (data.url) {
+          const gifRes = await fetch(data.url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
           });
-          await ctx.react('✅');
-          return;
+          if (gifRes.ok) {
+            gifBuffer = Buffer.from(await gifRes.arrayBuffer());
+          }
         }
       } catch (e) {
-        logger.warn(`[ANIME] Giphy fallback failed: ${e.message}`);
+        logger.warn(`[ANIME] Waifu.pics failed: ${e.message}`);
       }
     }
 
-    // 🚀 3. Send Tenor MP4 URL if found
-    if (mp4Url) {
+    if (!gifBuffer) {
+      await ctx.react('❌');
+      return ctx.reply(`❌ Failed to fetch kiss GIF. Try again.`);
+    }
+
+    try {
+      // 🚀 3. Convert GIF to MP4 (Best for WhatsApp playback)
+      const mp4Buffer = await convertGifToMp4(gifBuffer);
+
+      // 🎨 Simple Caption
+      const caption = `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳`;
+
+      // 🚀 4. Send as Video
+      await ctx.send({
+        video: mp4Buffer,
+        mimetype: 'video/mp4',
+        gifPlayback: true,
+        caption: caption,
+        mentions: mentioned ? [mentioned] : [ctx.sender],
+        contextInfo: getContextInfo()
+      });
+
+      await ctx.react('✅');
+      
+    } catch (err) {
+      logger.error(`[ANIME] Conversion/Send Error: ${err.message}`);
+      
+      // 🚀 5. Last Resort: Send GIF buffer directly (WhatsApp may still play it)
       try {
         await ctx.send({
-          video: { url: mp4Url },
+          video: gifBuffer,
           mimetype: 'video/mp4',
           gifPlayback: true,
           caption: `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳`,
@@ -96,40 +132,10 @@ export const kiss = {
           contextInfo: getContextInfo()
         });
         await ctx.react('✅');
-        return;
       } catch (e) {
-        logger.error(`[ANIME] Send Error: ${e.message}`);
+        await ctx.react('❌');
+        await ctx.reply(`❌ Failed to process GIF.`);
       }
     }
-
-    // 🚀 4. Last Resort: Waifu.pics (Random GIF buffer)
-    try {
-        const res = await fetch('https://api.waifu.pics/sfw/kiss', {
-          signal: AbortSignal.timeout(10000)
-        });
-        const data = await res.json();
-        if (data.url) {
-          const gifRes = await fetch(data.url);
-          if (gifRes.ok) {
-            const buffer = Buffer.from(await gifRes.arrayBuffer());
-            await ctx.send({
-              video: buffer,
-              mimetype: 'video/mp4',
-              gifPlayback: true,
-              caption: `> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳`,
-              mentions: mentioned ? [mentioned] : [ctx.sender],
-              contextInfo: getContextInfo()
-            });
-            await ctx.react('✅');
-            return;
-          }
-        }
-    } catch(e) {
-        logger.warn(`[ANIME] Waifu.pics failed: ${e.message}`);
-    }
-
-    // 🚀 5. All attempts failed
-    await ctx.react('❌');
-    await ctx.reply(`❌ Failed to fetch kiss GIF. All APIs are down.`);
   }
 };
