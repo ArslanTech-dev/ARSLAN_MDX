@@ -1,8 +1,9 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🌸 ANIME.JS — ARSLAN MDX Anime Kiss (30+ Random GIFs)
+ * 🌸 ANIME.JS — ARSLAN MDX Anime Kiss (20+ Random Kiss GIFs)
  * ═══════════════════════════════════════════════════════════════════
- * Massive GIF Pool + Cache Busting for 100% variety.
+ * Uses nekos.best API with amount=20 to fetch 20 kiss GIFs in one call.
+ * Picks a random one each time.
  */
 
 import axios from 'axios';
@@ -21,72 +22,59 @@ const getContextInfo = () => {
   };
 };
 
-// 🎬 30+ Direct MP4 Links from Giphy (Tested to bypass blocks)
-const kissGifs = [
-  'https://media.giphy.com/media/G3va31oEEnIkM/giphy.mp4',
-  'https://media.giphy.com/media/zkppEMFvRX5FC/giphy.mp4',
-  'https://media.giphy.com/media/l4FGuhL4U2WyjdkaY/giphy.mp4',
-  'https://media.giphy.com/media/12VXIxKaIEarL2/giphy.mp4',
-  'https://media.giphy.com/media/xUySTCDX1GZk8jO5sY/giphy.mp4',
-  'https://media.giphy.com/media/3ohs4BSacFKI7A717y/giphy.mp4',
-  'https://media.giphy.com/media/W3QKEujo8vztC/giphy.mp4',
-  'https://media.giphy.com/media/3o7TKrqBqfBqBqBqBq/giphy.mp4',
-  'https://media.giphy.com/media/l4FGGafcOHc0L0gGk/giphy.mp4',
-  'https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.mp4',
-  'https://media.giphy.com/media/3o6ZsY1KqBqfBqBqBq/giphy.mp4',
-  'https://media.giphy.com/media/5VKbvrjxpVJCM/giphy.mp4',
-  'https://media.giphy.com/media/3o7TKVUn7iM8FMEU24/giphy.mp4',
-  'https://media.giphy.com/media/l0HlvtIPzPdt2usKs/giphy.mp4',
-  'https://media.giphy.com/media/3o6Zt6KHxJTbXCnSvu/giphy.mp4',
-  'https://media.giphy.com/media/26xBwdIuRJiAIqHwA/giphy.mp4',
-  'https://media.giphy.com/media/3o7TKtnuHOHHUjR38Y/giphy.mp4',
-  'https://media.giphy.com/media/l4FGpP4lxGGgK5CBW/giphy.mp4',
-  'https://media.giphy.com/media/3o6ZsYm5P38Np4b8yY/giphy.mp4',
-  'https://media.giphy.com/media/26BRBKqUiyraXdXyA/giphy.mp4',
-  'https://media.giphy.com/media/3o6Zt4HU9sZt4G4G4g/giphy.mp4',
-  'https://media.giphy.com/media/l4FGFJcO3J6TqVY6Q/giphy.mp4',
-  'https://media.giphy.com/media/3o6Zt8Me2mBqW4o6la/giphy.mp4',
-  'https://media.giphy.com/media/3o7TKz9bX9bX9bX9bX/giphy.mp4',
-  'https://media.giphy.com/media/26BRv0ThflsHCqDrG/giphy.mp4',
-  'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.mp4',
-  'https://media.giphy.com/media/3o6ZtpxSZbQRRnwCKQ/giphy.mp4',
-  'https://media.giphy.com/media/3o7TKoWXm3okO1kgHC/giphy.mp4',
-  'https://media.giphy.com/media/l4FGuhL4U2WyjdkaY/giphy.mp4',
-  'https://media.giphy.com/media/26BROrSHlmyzzHf3i/giphy.mp4'
-];
+// 🚀 Fetch 20 Kiss GIF URLs from nekos.best
+async function fetch20KissGifs() {
+  const res = await axios.get('https://nekos.best/api/v2/kiss?amount=20', {
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+    timeout: 15000
+  });
+  if (!res.data.results || res.data.results.length === 0) {
+    throw new Error('No kiss GIFs returned from API');
+  }
+  // Extract URLs and remove duplicates (if any)
+  const urls = [...new Set(res.data.results.map(item => item.url))];
+  return urls;
+}
 
 export const kiss = {
   name: 'kiss',
   aliases: ['animekiss', 'kissgif'],
   async run(ctx) {
-    logger.info(`[KISS] Command triggered by ${ctx.senderNumber}`);
     await ctx.react('💋');
-    
+    logger.info(`[KISS] Command triggered by ${ctx.senderNumber}`);
+
     const mentioned = ctx.msg.message?.extendedTextMessage?.contextInfo?.participant;
-    
-    // 🚀 Pick a random index from the 30 links
-    const randomIndex = Math.floor(Math.random() * kissGifs.length);
-    const randomGif = kissGifs[randomIndex];
+
+    let gifUrls = [];
+    try {
+      // 🚀 1. Fetch 20 kiss GIFs
+      gifUrls = await fetch20KissGifs();
+      logger.info(`[KISS] Fetched ${gifUrls.length} kiss GIFs`);
+    } catch (err) {
+      logger.error(`[KISS] API failed: ${err.message}`);
+      await ctx.react('❌');
+      return ctx.reply(`❌ Failed to fetch kiss GIFs. Please try again.`);
+    }
+
+    // 🚀 2. Pick a random GIF from the list
+    const randomIndex = Math.floor(Math.random() * gifUrls.length);
+    const gifUrl = gifUrls[randomIndex];
+    logger.info(`[KISS] Selected GIF #${randomIndex + 1}: ${gifUrl}`);
 
     try {
-      logger.info(`[KISS] Downloading GIF #${randomIndex + 1} from: ${randomGif}`);
-      
-      // 🚀 Add cache-busting parameter so WhatsApp doesn't cache the image
-      const cacheBustUrl = `${randomGif}?cb=${Date.now()}`;
-
-      const response = await axios.get(cacheBustUrl, {
+      // 🚀 3. Download GIF as buffer (with browser User-Agent to avoid blocks)
+      const response = await axios.get(gifUrl, {
         responseType: 'arraybuffer',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         },
-        timeout: 15000 
+        timeout: 15000
       });
 
       const buffer = Buffer.from(response.data, 'binary');
-      logger.success(`[KISS] Buffer downloaded. Size: ${buffer.length} bytes`);
+      if (buffer.length === 0) throw new Error('Empty buffer');
 
-      if (buffer.length === 0) throw new Error('Buffer is empty');
-
+      // 🚀 4. Send as video with gifPlayback
       await ctx.send({
         video: buffer,
         mimetype: 'video/mp4',
@@ -98,9 +86,9 @@ export const kiss = {
 
       logger.success(`[KISS] GIF sent successfully.`);
       await ctx.react('✅');
-      
+
     } catch (err) {
-      logger.error(`[KISS] Error: ${err.message}`);
+      logger.error(`[KISS] Download/Send error: ${err.message}`);
       await ctx.react('❌');
       await ctx.reply(`❌ Failed to send GIF: ${err.message}`);
     }
