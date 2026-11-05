@@ -1,9 +1,8 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🌸 ANIME.JS — ARSLAN MDX Anime Kiss (20+ Random Kiss GIFs)
+ * 🌸 ANIME.JS — ARSLAN MDX Anime Kiss (41 Unique GIFs)
  * ═══════════════════════════════════════════════════════════════════
- * Uses nekos.best API with amount=20 to fetch 20 kiss GIFs in one call.
- * Picks a random one each time.
+ * Uses gifcdn's GitHub Raw CDN: 41 kiss GIFs, no API key, no rate limits.
  */
 
 import axios from 'axios';
@@ -22,19 +21,8 @@ const getContextInfo = () => {
   };
 };
 
-// 🚀 Fetch 20 Kiss GIF URLs from nekos.best
-async function fetch20KissGifs() {
-  const res = await axios.get('https://nekos.best/api/v2/kiss?amount=20', {
-    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-    timeout: 15000
-  });
-  if (!res.data.results || res.data.results.length === 0) {
-    throw new Error('No kiss GIFs returned from API');
-  }
-  // Extract URLs and remove duplicates (if any)
-  const urls = [...new Set(res.data.results.map(item => item.url))];
-  return urls;
-}
+// 🎬 Direct GitHub Raw CDN URLs for 41 Kiss GIFs
+const KISS_GIF_COUNT = 41;
 
 export const kiss = {
   name: 'kiss',
@@ -45,24 +33,13 @@ export const kiss = {
 
     const mentioned = ctx.msg.message?.extendedTextMessage?.contextInfo?.participant;
 
-    let gifUrls = [];
-    try {
-      // 🚀 1. Fetch 20 kiss GIFs
-      gifUrls = await fetch20KissGifs();
-      logger.info(`[KISS] Fetched ${gifUrls.length} kiss GIFs`);
-    } catch (err) {
-      logger.error(`[KISS] API failed: ${err.message}`);
-      await ctx.react('❌');
-      return ctx.reply(`❌ Failed to fetch kiss GIFs. Please try again.`);
-    }
-
-    // 🚀 2. Pick a random GIF from the list
-    const randomIndex = Math.floor(Math.random() * gifUrls.length);
-    const gifUrl = gifUrls[randomIndex];
-    logger.info(`[KISS] Selected GIF #${randomIndex + 1}: ${gifUrl}`);
+    // 🚀 1. Pick a random number between 1 and 41
+    const randomNum = Math.floor(Math.random() * KISS_GIF_COUNT) + 1;
+    const gifUrl = `https://raw.githubusercontent.com/itsfizys/gifcdn/main/kiss/${randomNum}.gif`;
+    logger.info(`[KISS] Selected GIF #${randomNum}: ${gifUrl}`);
 
     try {
-      // 🚀 3. Download GIF as buffer (with browser User-Agent to avoid blocks)
+      // 🚀 2. Download GIF as buffer with browser User-Agent
       const response = await axios.get(gifUrl, {
         responseType: 'arraybuffer',
         headers: {
@@ -72,9 +49,11 @@ export const kiss = {
       });
 
       const buffer = Buffer.from(response.data, 'binary');
-      if (buffer.length === 0) throw new Error('Empty buffer');
+      if (buffer.length === 0) throw new Error('Empty buffer received');
 
-      // 🚀 4. Send as video with gifPlayback
+      logger.success(`[KISS] Buffer downloaded. Size: ${buffer.length} bytes`);
+
+      // 🚀 3. Send as video with gifPlayback
       await ctx.send({
         video: buffer,
         mimetype: 'video/mp4',
@@ -90,7 +69,7 @@ export const kiss = {
     } catch (err) {
       logger.error(`[KISS] Download/Send error: ${err.message}`);
       await ctx.react('❌');
-      await ctx.reply(`❌ Failed to send GIF: ${err.message}`);
+      await ctx.reply(`❌ Failed to send GIF. Please try again.`);
     }
   }
 };
