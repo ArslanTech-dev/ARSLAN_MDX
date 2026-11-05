@@ -11,7 +11,7 @@ import logger from '../utils/logger.js';
 const getContextInfo = () => {
   return {
     forwardingScore: 999,
-    isForwarded: true,
+    isForwarded: false,
     forwardedNewsletterMessageInfo: {
       newsletterJid: '120363412450457588@newsletter', 
       newsletterName: 'ARSLAN MDX',
