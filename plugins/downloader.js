@@ -8,7 +8,7 @@
 import { downloadYouTubeAudio } from '../lib/ytmusic.js';
 import logger from '../utils/logger.js';
 
-// 🎲 Random Songs (Agar user bina naam ke .play likhe)
+// 🎲 Random Songs
 const randomSongs = [
   'Admirin You Karan Aujla',
   'Kesariya Brahmastra',
