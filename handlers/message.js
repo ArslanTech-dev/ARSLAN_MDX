@@ -2,7 +2,8 @@
  * ═══════════════════════════════════════════════════════════════════
  * 🧩 MESSAGE.JS — Ultimate Plugin Router & Event Interceptor
  * ═══════════════════════════════════════════════════════════════════
- * Includes: Antilink, Antidelete (Media + Text), Anticall, Welcome.
+ * Features: Antilink, Antidelete (Media+Text to Owner), Anticall, 
+ * Antispam, Antibug, Welcome, Goodbye.
  */
 
 import fs from 'fs';
@@ -12,6 +13,8 @@ import { downloadContentFromMessage } from '@whiskeysockets/baileys';
 import { CONFIG } from '../config.js';
 import { extractText, cleanJid, isGroup, isOwner, getSender, nowTime } from '../utils/helper.js';
 import { getGroupSettings, readDb } from '../utils/database.js';
+import { isPayloadBugged } from '../utils/antibugEngine.js';
+import { isSpamming } from '../utils/antispamEngine.js';
 import logger from '../utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -83,12 +86,15 @@ async function handleAntilink(sock, msg, from, sender, text, sessionNumber) {
 }
 
 // ===============================================
-// 🗑️ ANTIDELETE HANDLER (TEXT + MEDIA)
+// 🗑️ ANTIDELETE HANDLER (Recover to OWNER DM)
 // ===============================================
 async function handleAntidelete(sock, updates, sessionNumber) {
   try {
     const db = await readDb();
     if (!db.global_settings?.antiDelete) return; 
+
+    // 🚀 Get Bot's Own JID (Owner DM)
+    const botJid = sock.user?.id?.split(':')[0] + '@s.whatsapp.net';
 
     for (const u of updates) {
       const isDeleted = u.update?.message === null || u.update?.messageStubType === 1 || u.update?.messageStubParameters?.[0] === 'Message deleted';
@@ -101,18 +107,14 @@ async function handleAntidelete(sock, updates, sessionNumber) {
       const { msg: originalMsg, from, sender } = cached;
       if (isOwner(sender) || originalMsg.key.fromMe) continue;
 
-      // 🚀 PREMIUM CAPTION
-      const header = `*╭─❍══ ⃟ ⃟ ⃟   𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇   ⃟ ⃟ ⃟══⊷❍*
-┇◆╭┉┉┉┉┉┉┉┉┉┉━┈⊷
-┇◆┋🛡️ *𝐀𝐍𝐓𝐈-𝐃𝐄𝐋𝐄𝐓𝐄*
-┇◆┋
-┇◆┋👤 *Sender:* @${cleanJid(sender)}
-┇◆┋📍 *Chat:* ${isGroup(from) ? 'Group' : 'DM'}
-┇◆┋🕒 *Time:* ${nowTime()}
-┇◆╰┉┉┉┉┉┉┉┉┉┉┉┉┉━┈⊷
-╰═══════════════════⍟
-
-> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇`;
+      // 🎨 Clean & Premium Design
+      const header = `> 🛡️ *ANTI-DELETE TRIGGERED*
+> 
+> 👤 *Sender:* @${cleanJid(sender)}
+> 📍 *Chat:* ${isGroup(from) ? 'Group' : 'DM'}
+> 🕒 *Time:* ${nowTime()}
+> 
+> © POWERED BY ARSLAN MD`;
 
       const m = originalMsg.message;
       let mediaType = null;
@@ -128,7 +130,6 @@ async function handleAntidelete(sock, updates, sessionNumber) {
       // 🚀 1. IF MEDIA IS DELETED
       if (mediaType && mediaData) {
         try {
-          // Download the media from cache
           const stream = await downloadContentFromMessage(mediaData, mediaType);
           let buffer = Buffer.from([]);
           for await (const chunk of stream) {
@@ -147,25 +148,23 @@ async function handleAntidelete(sock, updates, sessionNumber) {
               payload.fileName = mediaData.fileName;
           }
 
-          // Send recovered media
-          await sock.sendMessage(from, payload);
-          logger.success(`[AntiDelete] Recovered ${mediaType} from ${sender}`);
+          // 🚀 Send to Bot's Own Number (Owner DM)
+          await sock.sendMessage(botJid, payload);
+          logger.success(`[AntiDelete] Recovered ${mediaType} from ${sender} and sent to Owner DM.`);
 
         } catch (err) {
           logger.error(`[AntiDelete] Failed to recover media: ${err.message}`);
-          // Fallback: Notify with text only if download fails
-          await sock.sendMessage(from, { text: `${header}\n\n⚠️ *Media could not be recovered.*`, mentions: [sender] });
         }
       } 
       // 🚀 2. IF TEXT IS DELETED
       else {
         const text = extractText(originalMsg);
         if (text) {
-          await sock.sendMessage(from, { 
-            text: `${header}\n\n📝 *Message:* ${text}`, 
+          await sock.sendMessage(botJid, { 
+            text: `${header}\n\n> 📝 *Message:* ${text}`, 
             mentions: [sender] 
           });
-          logger.success(`[AntiDelete] Recovered text from ${sender}`);
+          logger.success(`[AntiDelete] Recovered text from ${sender} and sent to Owner DM.`);
         }
       }
 
@@ -188,11 +187,18 @@ async function handleAntiCall(sock, calls, sessionNumber) {
       if (call.status === 'offer') {
         await sock.rejectCall(call.id, call.from);
         await sock.sendMessage(call.from, { 
-          text: `*╭─❍══ ⃟ ⃟ ⃟   𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇   ⃟ ⃟ ⃟══⊷❍*\n┇◆╭┉┉┉┉┉┉┉┉┉┉━┈⊷\n┇◆┋📵 *𝐀𝐍𝐓𝐈-𝐂𝐀𝐋𝐋*\n┇◆┋\n┇◆┋Calls are auto-rejected.\n┇◆╰┉┉┉┉┉┉┉┉┉┉┉┉┉━┈⊷\n╰═══════════════════⍟\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𝙰𝚁𝚂𝙻𝙰𝙽 𝙼𝙳𝚇` 
+          text: `> 📵 *ANTI-CALL SYSTEM*
+> 
+> Calls are automatically rejected to prevent spam.
+> Please send a text message instead.
+> 
+> © POWERED BY ARSLAN MD` 
         });
       }
     }
-  } catch (err) {}
+  } catch (err) {
+    logger.error(`AntiCall error: ${err.message}`);
+  }
 }
 
 // ===============================================
@@ -206,7 +212,11 @@ async function handleGroupParticipants(sock, update, sessionNumber) {
     if (action === 'add' && settings.welcome) {
       const meta = await sock.groupMetadata(id);
       for (const jid of participants) {
-        const caption = `> 💚 *Welcome* @${cleanJid(jid)}!\n> 🎀 To *${meta.subject}*`;
+        const caption = `> 💚 *WELCOME*
+> 
+> Hey @${cleanJid(jid)}, welcome to *${meta.subject}*!
+> 
+> © POWERED BY ARSLAN MD`;
         await sock.sendMessage(id, { text: caption, mentions: [jid] });
       }
     }
@@ -214,7 +224,11 @@ async function handleGroupParticipants(sock, update, sessionNumber) {
     if (action === 'remove' && settings.goodbye) {
       const meta = await sock.groupMetadata(id);
       for (const jid of participants) {
-        const caption = `> 💔 *Goodbye* @${cleanJid(jid)}\n> 👥 Left *${meta.subject}*`;
+        const caption = `> 💔 *GOODBYE*
+> 
+> @${cleanJid(jid)} has left *${meta.subject}*.
+> 
+> © POWERED BY ARSLAN MD`;
         await sock.sendMessage(id, { text: caption, mentions: [jid] });
       }
     }
@@ -235,8 +249,19 @@ export async function handleMessage(sock, msg, sessionNumber) {
     const text = extractText(msg);
     const owner = isOwner(sender);
 
-    if (from === 'status@broadcast' || from.endsWith('@newsletter')) {
-      return;
+    // 🚀 SPAM FILTER
+    if (from === 'status@broadcast' || from.endsWith('@newsletter')) return;
+
+    // 🚀 ANTI-BUG CHECK
+    if (isPayloadBugged(text)) return;
+
+    // 🚀 ANTI-SPAM CHECK (Owner is exempt)
+    if (!owner) {
+      const spamCheck = await isSpamming(sender);
+      if (spamCheck.spam) {
+        logger.warn(`[ANTI-SPAM] Blocked spam from ${sender}`);
+        return; 
+      }
     }
 
     // Cache message for Anti-Delete
