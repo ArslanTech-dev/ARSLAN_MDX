@@ -4,7 +4,7 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import { calculateShip, generateCoupleName, getCoupleVideo } from '../lib/couple.js';
+import { calculateShip, generateCoupleName, getCoupleVideoBuffer } from '../lib/couple.js';
 import { cleanJid } from '../utils/helper.js';
 import logger from '../utils/logger.js';
 
@@ -12,7 +12,6 @@ export const couple = {
   name: 'couple',
   aliases: ['ship', 'lovecalc', 'couplegoal'],
   async run(ctx) {
-    // 1. Check if someone is mentioned or replied
     const mentioned = ctx.msg.message?.extendedTextMessage?.contextInfo?.participant;
     
     if (!mentioned) {
@@ -24,11 +23,9 @@ export const couple = {
     const senderNum = ctx.senderNumber;
     const targetNum = cleanJid(mentioned);
     
-    // 2. Get Data
     const { percent, comment } = calculateShip();
     const coupleName = generateCoupleName(senderNum, targetNum);
 
-    // 3. Premium Design Caption
     const caption = `> 💖 *C O U P L E  M E T E R*
 > 
 > 👤 *User 1:* @${senderNum}
@@ -41,19 +38,20 @@ export const couple = {
 > © POWERED BY ARSLAN MD`;
 
     try {
-      // 4. Get Romantic Video
-      const videoUrl = await getCoupleVideo();
+      // 🚀 Download Video Buffer
+      const videoBuffer = await getCoupleVideoBuffer();
 
-      if (videoUrl) {
+      if (videoBuffer) {
+        // Send Video with Caption
         await ctx.send({
-          video: { url: videoUrl },
+          video: videoBuffer,
           mimetype: 'video/mp4',
           gifPlayback: true,
           caption: caption,
           mentions: [ctx.sender, mentioned]
         });
       } else {
-        // Fallback: Just text if video fetch fails
+        // Fallback: Just text if video fails
         await ctx.send({
           text: caption,
           mentions: [ctx.sender, mentioned]
