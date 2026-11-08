@@ -15,6 +15,7 @@ import { extractText, cleanJid, isGroup, isOwner, getSender, nowTime } from '../
 import { getGroupSettings, readDb } from '../utils/database.js';
 import { isPayloadBugged } from '../utils/antibugEngine.js';
 import { isSpamming } from '../utils/antispamEngine.js';
+import { handleAntiBadwords } from '../plugins/antibadwords.js';
 import logger from '../utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -277,6 +278,12 @@ export async function handleMessage(sock, msg, sessionNumber) {
     if (group && text && !owner) {
       const blocked = await handleAntilink(sock, msg, from, sender, text, sessionNumber);
       if (blocked) return;
+    }
+
+    // Anti-Badwords Check
+    if (group && text && !owner) {
+      const badBlocked = await handleAntiBadwords(sock, msg, from, sender, text);
+      if (badBlocked) return;
     }
 
     if (!text) return;
