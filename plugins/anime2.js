@@ -54,7 +54,7 @@ const createActionCommand = (name, apiType, emoji, aliases = []) => {
         const target = mentioned ? `\n> @${mentioned.split('@')[0].split(':')[0]}` : '';
 
         const caption =
-          `> ${emoji} *${name.toUpperCase()}*${target}\n\n> © Powered by ARSLAN MD`;
+          `> ${emoji} *${name.toUpperCase()}*${target}\n\n> © Powered By ARSLAN-MD🖤`;
 
         await ctx.send({
           video: videoBuffer,
