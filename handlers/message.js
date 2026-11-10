@@ -1,9 +1,11 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🧩 MESSAGE.JS — Ultimate Plugin Router & Event Interceptor (v3)
+ * 🧩 MESSAGE.JS — ARSLAN MDX · Ultimate Router (v4 Robust + Debug)
  * ═══════════════════════════════════════════════════════════════════
- * NEW: No-prefix plugin support (viewonce2 etc.)
- * Fixed: antilink regex · cache TTL · media size limit
+ * ✅ No-prefix plugin support (viewonce2 etc.)
+ * ✅ Robust anti-delete (multi-variant detection, retry, size cap)
+ * ✅ Robust anti-call (status filter, dedupe, owner notify)
+ * ✅ Debug logging at every step
  */
 
 import fs from 'fs';
@@ -20,16 +22,20 @@ import logger from '../utils/logger.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_DIR = path.join(__dirname, '..', 'plugins');
 
-// 📦 PLUGIN REGISTRY
+// ═══════════════════════════════════════════════════════════════════
+// 📦 REGISTRY
+// ═══════════════════════════════════════════════════════════════════
 const plugins = new Map();
 const aliases = new Map();
-const noPrefixPlugins = []; // 🆕 cached list
+const noPrefixPlugins = [];
 let loaded = false;
 
-// 💾 MESSAGE CACHE
+// ═══════════════════════════════════════════════════════════════════
+// 💾 MESSAGE CACHE (anti-delete)
+// ═══════════════════════════════════════════════════════════════════
 const messageCache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000;
-const CACHE_MAX = 1000;
+const CACHE_MAX = 2000;
 
 function cacheSet(id, data) {
   messageCache.set(id, { ...data, ts: Date.now() });
@@ -37,6 +43,7 @@ function cacheSet(id, data) {
     messageCache.delete(messageCache.keys().next().value);
   }
 }
+
 function cacheGet(id) {
   const e = messageCache.get(id);
   if (!e) return null;
@@ -47,9 +54,9 @@ function cacheGet(id) {
   return e;
 }
 
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
 // 🔄 LOAD PLUGINS
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
 export async function loadPlugins() {
   if (loaded) return;
   if (!fs.existsSync(PLUGIN_DIR)) fs.mkdirSync(PLUGIN_DIR, { recursive: true });
@@ -69,7 +76,6 @@ export async function loadPlugins() {
         if (Array.isArray(p.aliases)) {
           for (const a of p.aliases) aliases.set(a.toLowerCase(), p.name.toLowerCase());
         }
-        // 🆕 Register no-prefix plugins
         if (p.noPrefix && Array.isArray(p.triggers)) {
           noPrefixPlugins.push(p);
         }
@@ -80,12 +86,14 @@ export async function loadPlugins() {
     }
   }
   loaded = true;
-  (logger.success || logger.info)(`[PLUGINS] Total Loaded: ${count} · NoPrefix: ${noPrefixPlugins.length}`);
+  (logger.success || logger.info)(
+    `[PLUGINS] Total: ${count} · NoPrefix: ${noPrefixPlugins.length}`
+  );
 }
 
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
 // 🔗 ANTILINK
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
 const LINK_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+|chat\.whatsapp\.com\/[^\s]+|wa\.me\/[^\s]+)/i;
 
 async function handleAntilink(sock, msg, from, sender) {
@@ -111,6 +119,7 @@ async function handleAntilink(sock, msg, from, sender) {
     if (!isBotAdmin) return false;
 
     await sock.sendMessage(from, { delete: msg.key });
+    logger.info(`[ANTILINK] 🗑 Deleted link from ${cleanJid(sender)}`);
     return true;
   } catch (err) {
     logger.error(`[ANTILINK] ${err.message}`);
@@ -118,10 +127,59 @@ async function handleAntilink(sock, msg, from, sender) {
   }
 }
 
-// ===============================================
-// 🗑️ ANTIDELETE
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
+// 🗑️ ANTIDELETE — ROBUST VERSION
+// ═══════════════════════════════════════════════════════════════════
 const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
+const STUB_DELETE_TYPES = [0, 1, 2, 3]; // REVOKE variants
+
+function isDeleteUpdate(update) {
+  if (!update) return false;
+  if (update.message === null) return true;
+  if (update.message === undefined) return true;
+  if (STUB_DELETE_TYPES.includes(update.messageStubType)) return true;
+  const params = update.messageStubParameters;
+  if (Array.isArray(params) && params.some(
+    (p) => typeof p === 'string' && /delete|remove|revoke/i.test(p)
+  )) return true;
+  return false;
+}
+
+function getMediaFromMessage(m) {
+  if (!m) return null;
+  if (m.imageMessage)         return { type: 'image',    data: m.imageMessage };
+  if (m.videoMessage)         return { type: 'video',    data: m.videoMessage };
+  if (m.stickerMessage)       return { type: 'sticker',  data: m.stickerMessage };
+  if (m.audioMessage)         return { type: 'audio',    data: m.audioMessage };
+  if (m.documentMessage)      return { type: 'document', data: m.documentMessage };
+
+  // Unwrap view-once / ephemeral
+  const inner =
+    m.viewOnceMessage?.message ||
+    m.viewOnceMessageV2?.message ||
+    m.viewOnceMessageV2Extension?.message ||
+    m.ephemeralMessage?.message;
+  if (inner) return getMediaFromMessage(inner);
+
+  return null;
+}
+
+async function tryDownload(media, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const stream = await downloadContentFromMessage(media.data, media.type);
+      const chunks = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      const buffer = Buffer.concat(chunks);
+      if (buffer.length) return buffer;
+      throw new Error('Empty buffer');
+    } catch (err) {
+      if (attempt === retries) throw err;
+      logger.warn(`[AntiDelete] Download retry ${attempt + 1}/${retries}: ${err.message}`);
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
+}
 
 async function handleAntidelete(sock, updates, sessionNumber) {
   try {
@@ -131,19 +189,21 @@ async function handleAntidelete(sock, updates, sessionNumber) {
     const botJid = sock.user?.id
       ? sock.user.id.split(':')[0] + '@s.whatsapp.net'
       : null;
-    if (!botJid) return;
+    if (!botJid) {
+      logger.warn(`[AntiDelete] No botJid — skip`);
+      return;
+    }
 
     for (const u of updates) {
-      const isDeleted =
-        u.update?.message === null ||
-        u.update?.message === undefined ||
-        u.update?.messageStubType === 1 ||
-        u.update?.messageStubParameters?.[0] === 'Message deleted';
-      if (!isDeleted) continue;
+      if (!u?.key?.id) continue;
+      if (!isDeleteUpdate(u.update)) continue;
 
-      const msgId = u.key?.id;
+      const msgId = u.key.id;
       const cached = cacheGet(msgId);
-      if (!cached) continue;
+      if (!cached) {
+        logger.info(`[AntiDelete] ❌ Not in cache: ${msgId}`);
+        continue;
+      }
 
       const { msg: originalMsg, from, sender } = cached;
       if (isOwner(sender) || originalMsg.key.fromMe) {
@@ -151,27 +211,22 @@ async function handleAntidelete(sock, updates, sessionNumber) {
         continue;
       }
 
+      logger.info(`[AntiDelete] ▶ Processing ${msgId} from ${cleanJid(sender)}`);
+
       const header =
         `> 🛡️ *ANTI-DELETE TRIGGERED*\n` +
-        `> \n` +
-        `> 👤 *Sender:* @${cleanJid(sender)}\n` +
-        `> 📍 *Chat:* ${isGroup(from) ? 'Group' : 'DM'}\n` +
-        `> 🕒 *Time:* ${nowTime()}\n` +
-        `> \n` +
-        `> © POWERED BY ARSLAN MD`;
+        `> ────────────────\n` +
+        `> 👤 \`Sender: @${cleanJid(sender)}\`\n` +
+        `> 📍 \`Chat  : ${isGroup(from) ? 'Group' : 'DM'}\`\n` +
+        `> 🕒 \`Time  : ${nowTime()}\`\n` +
+        `> ────────────────\n` +
+        `> 💫 _POWERED BY ARSLAN MD_`;
 
-      const m = originalMsg.message;
-      let mediaType = null;
-      let mediaData = null;
+      const media = getMediaFromMessage(originalMsg.message);
 
-      if (m.imageMessage)         { mediaType = 'image';    mediaData = m.imageMessage; }
-      else if (m.videoMessage)    { mediaType = 'video';    mediaData = m.videoMessage; }
-      else if (m.stickerMessage)  { mediaType = 'sticker';  mediaData = m.stickerMessage; }
-      else if (m.audioMessage)    { mediaType = 'audio';    mediaData = m.audioMessage; }
-      else if (m.documentMessage) { mediaType = 'document'; mediaData = m.documentMessage; }
-
-      if (mediaType && mediaData) {
-        const fileSize = Number(mediaData.fileLength || 0);
+      // ── MEDIA DELETED ──
+      if (media) {
+        const fileSize = Number(media.data.fileLength || 0);
         if (fileSize > MAX_MEDIA_BYTES) {
           await sock.sendMessage(botJid, {
             text: `${header}\n\n> ⚠️ Media too large (${Math.round(fileSize / 1024 / 1024)} MB) — skipped.`,
@@ -182,35 +237,41 @@ async function handleAntidelete(sock, updates, sessionNumber) {
         }
 
         try {
-          const stream = await downloadContentFromMessage(mediaData, mediaType);
-          const chunks = [];
-          for await (const chunk of stream) chunks.push(chunk);
-          const buffer = Buffer.concat(chunks);
+          const buffer = await tryDownload(media, 2);
 
           const payload = { caption: header, mentions: [sender] };
-          if (mediaType === 'image')         payload.image = buffer;
-          else if (mediaType === 'video')    payload.video = buffer;
-          else if (mediaType === 'sticker')  payload.sticker = buffer;
-          else if (mediaType === 'audio')  { payload.audio = buffer; payload.mimetype = 'audio/mp4'; }
-          else if (mediaType === 'document') {
+          if (media.type === 'image')         payload.image = buffer;
+          else if (media.type === 'video')    payload.video = buffer;
+          else if (media.type === 'sticker')  payload.sticker = buffer;
+          else if (media.type === 'audio')  { payload.audio = buffer; payload.mimetype = 'audio/mp4'; }
+          else if (media.type === 'document') {
             payload.document = buffer;
-            payload.mimetype = mediaData.mimetype;
-            payload.fileName = mediaData.fileName;
+            payload.mimetype = media.data.mimetype;
+            payload.fileName = media.data.fileName || 'file';
           }
 
           await sock.sendMessage(botJid, payload);
-          logger.info(`[AntiDelete] Recovered ${mediaType} from ${sender}`);
+          logger.info(`[AntiDelete] ✅ Recovered ${media.type} (${buffer.length} bytes)`);
         } catch (err) {
-          logger.error(`[AntiDelete] Media failed: ${err.message}`);
+          // Media download failed → send text with error note
+          logger.error(`[AntiDelete] Media download failed: ${err.message}`);
+          const text = extractText(originalMsg);
+          await sock.sendMessage(botJid, {
+            text: `${header}\n\n> ⚠️ *${media.type.toUpperCase()} expired/undownloadable*\n` +
+                  (text ? `> 📝 *Text:* ${text}` : ''),
+            mentions: [sender],
+          });
         }
-      } else {
+      }
+      // ── TEXT DELETED ──
+      else {
         const text = extractText(originalMsg);
         if (text) {
           await sock.sendMessage(botJid, {
-            text: `${header}\n\n> 📝 *Message:* ${text}`,
+            text: `${header}\n\n> 📝 *Message:*\n> ${text}`,
             mentions: [sender],
           });
-          logger.info(`[AntiDelete] Recovered text from ${sender}`);
+          logger.info(`[AntiDelete] ✅ Recovered text from ${cleanJid(sender)}`);
         }
       }
 
@@ -221,36 +282,93 @@ async function handleAntidelete(sock, updates, sessionNumber) {
   }
 }
 
-// ===============================================
-// 📵 ANTI-CALL
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
+// 📵 ANTICALL — ROBUST VERSION
+// ═══════════════════════════════════════════════════════════════════
+const callCooldown = new Map(); // `${from}_${id}` -> timestamp
+const CALL_COOLDOWN_MS = 60 * 1000;
+
 async function handleAntiCall(sock, calls) {
   try {
     const db = await readDb();
-    if (!db.global_settings?.antiCall) return;
+    const enabled = !!db.global_settings?.antiCall;
 
     for (const call of calls) {
-      if (call.status === 'offer') {
+      if (!call || !call.from || !call.id) continue;
+
+      logger.info(
+        `[AntiCall] event from=${cleanJid(call.from)} status=${call.status} id=${call.id}`
+      );
+
+      // Only handle incoming ringing calls
+      if (call.status !== 'offer') continue;
+
+      if (!enabled) {
+        logger.info(`[AntiCall] ⏭ DISABLED — ignoring call from ${cleanJid(call.from)}`);
+        continue;
+      }
+
+      // Dedupe — WhatsApp may fire same call multiple times
+      const key = `${call.from}_${call.id}`;
+      const now = Date.now();
+      if (now - (callCooldown.get(key) || 0) < CALL_COOLDOWN_MS) {
+        logger.info(`[AntiCall] ⏭ Duplicate — already rejected`);
+        continue;
+      }
+      callCooldown.set(key, now);
+      if (callCooldown.size > 200) {
+        callCooldown.delete(callCooldown.keys().next().value);
+      }
+
+      // 1. Reject
+      try {
         await sock.rejectCall(call.id, call.from);
+        logger.info(`[AntiCall] ✅ Rejected from ${cleanJid(call.from)}`);
+      } catch (err) {
+        logger.error(`[AntiCall] Reject failed: ${err.message}`);
+      }
+
+      // 2. Auto-reply to caller
+      try {
         await sock.sendMessage(call.from, {
           text:
             `> 📵 *ANTI-CALL SYSTEM*\n` +
-            `> \n` +
-            `> Calls are automatically rejected to prevent spam.\n` +
+            `> ────────────────\n` +
+            `> Calls are automatically *rejected* to prevent spam.\n` +
             `> Please send a text message instead.\n` +
-            `> \n` +
-            `> © POWERED BY ARSLAN MD`,
+            `> ────────────────\n` +
+            `> 💫 _POWERED BY ARSLAN MD_`,
         });
+      } catch (err) {
+        logger.warn(`[AntiCall] Auto-reply failed: ${err.message}`);
       }
+
+      // 3. Notify owner (bot's own DM)
+      try {
+        const botJid = sock.user?.id
+          ? sock.user.id.split(':')[0] + '@s.whatsapp.net'
+          : null;
+        if (botJid && botJid !== call.from) {
+          await sock.sendMessage(botJid, {
+            text:
+              `> 📵 *CALL REJECTED*\n` +
+              `> ────────────────\n` +
+              `> 👤 \`From: ${cleanJid(call.from)}\`\n` +
+              `> 🕒 \`Time: ${nowTime()}\`\n` +
+              `> ────────────────\n` +
+              `> 💫 _POWERED BY ARSLAN MD_`,
+          });
+        }
+      } catch {}
     }
   } catch (err) {
     logger.error(`[AntiCall] ${err.message}`);
   }
 }
 
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
 // 👋 WELCOME / GOODBYE
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
 async function handleGroupParticipants(sock, update) {
   try {
     const { id, participants, action } = update;
@@ -262,10 +380,10 @@ async function handleGroupParticipants(sock, update) {
         await sock.sendMessage(id, {
           text:
             `> 💚 *WELCOME*\n` +
-            `> \n` +
+            `> ────────────────\n` +
             `> Hey @${cleanJid(jid)}, welcome to *${meta.subject}*!\n` +
-            `> \n` +
-            `> © POWERED BY ARSLAN MD`,
+            `> ────────────────\n` +
+            `> 💫 _POWERED BY ARSLAN MD_`,
           mentions: [jid],
         });
       }
@@ -277,10 +395,10 @@ async function handleGroupParticipants(sock, update) {
         await sock.sendMessage(id, {
           text:
             `> 💔 *GOODBYE*\n` +
-            `> \n` +
+            `> ────────────────\n` +
             `> @${cleanJid(jid)} has left *${meta.subject}*.\n` +
-            `> \n` +
-            `> © POWERED BY ARSLAN MD`,
+            `> ────────────────\n` +
+            `> 💫 _POWERED BY ARSLAN MD_`,
           mentions: [jid],
         });
       }
@@ -290,9 +408,9 @@ async function handleGroupParticipants(sock, update) {
   }
 }
 
-// ===============================================
-// 🆕 NO-PREFIX PLUGIN DISPATCHER
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
+// 🔍 NO-PREFIX HELPERS
+// ═══════════════════════════════════════════════════════════════════
 const normalizeTrigger = (s) =>
   String(s || '')
     .normalize('NFC')
@@ -321,9 +439,9 @@ function hasReply(msg) {
   return !!info?.quotedMessage;
 }
 
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
 // 📩 MAIN MESSAGE HANDLER
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
 export async function handleMessage(sock, msg, sessionNumber) {
   try {
     await loadPlugins();
@@ -335,17 +453,16 @@ export async function handleMessage(sock, msg, sessionNumber) {
     const text   = extractText(msg);
     const owner  = isOwner(sender);
 
-    // Skip status / newsletter
-    if (from === 'status@broadcast' || from.endsWith('@newsletter')) return;
+    // 🔍 DEBUG
+    logger.info(`[MSG-IN] from=${from} sender=${cleanJid(sender)} text="${text?.slice(0, 40) || ''}"`);
 
-    // Anti-bug
+    if (from === 'status@broadcast' || from.endsWith('@newsletter')) return;
     if (isPayloadBugged(text)) return;
 
-    // Anti-spam
     if (!owner) {
       const spamCheck = await isSpamming(sender);
       if (spamCheck.spam) {
-        logger.warn(`[ANTI-SPAM] Blocked ${sender}`);
+        logger.warn(`[ANTI-SPAM] Blocked ${cleanJid(sender)}`);
         return;
       }
     }
@@ -371,13 +488,18 @@ export async function handleMessage(sock, msg, sessionNumber) {
 
     if (!text) return;
 
-    // ─────────────────────────────────────────────
-    // 🆕 NO-PREFIX PLUGIN CHECK (before prefix parsing)
-    // ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════
+    // 🆕 NO-PREFIX PLUGIN (before prefix parsing)
+    // ═══════════════════════════════════════════════════════════
     const noPrefixPlugin = findNoPrefixPlugin(text);
+    logger.info(`[NO-PREFIX] text="${text}" → ${noPrefixPlugin ? noPrefixPlugin.name : 'no match'}`);
+
     if (noPrefixPlugin) {
-      if (noPrefixPlugin.requiresReply && !hasReply(msg)) {
-        // skip — needs a reply
+      const hasQ = hasReply(msg);
+      logger.info(`[NO-PREFIX] plugin=${noPrefixPlugin.name} hasReply=${hasQ}`);
+
+      if (noPrefixPlugin.requiresReply && !hasQ) {
+        logger.info(`[NO-PREFIX] ⚠ Skipped — reply required`);
       } else {
         const ctx = {
           sock, msg, from, sender,
@@ -391,17 +513,18 @@ export async function handleMessage(sock, msg, sessionNumber) {
         };
         try { await sock.readMessages([msg.key]); } catch {}
         try {
+          logger.info(`[NO-PREFIX] ▶ Running ${noPrefixPlugin.name}...`);
           await noPrefixPlugin.run(ctx);
         } catch (err) {
           logger.error(`[${sessionNumber}] [${noPrefixPlugin.name}] ${err.message}`);
         }
-        return; // handled
+        return;
       }
     }
 
-    // ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════
     // PREFIX COMMANDS
-    // ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════
     const prefix = CONFIG.PREFIX;
     if (!text.startsWith(prefix)) return;
 
@@ -439,9 +562,9 @@ export async function handleMessage(sock, msg, sessionNumber) {
   }
 }
 
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
 // ⚙️ EVENT SETUP
-// ===============================================
+// ═══════════════════════════════════════════════════════════════════
 export function setupEvents(sock, sessionNumber) {
   sock.ev.on('group-participants.update', (u) => handleGroupParticipants(sock, u));
   sock.ev.on('messages.update', (u) => handleAntidelete(sock, u, sessionNumber));
