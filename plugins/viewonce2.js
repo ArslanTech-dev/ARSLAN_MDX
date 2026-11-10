@@ -1,14 +1,12 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════╗
- * ║  🪾 VIEWONCE2.JS — ARSLAN MDX · No-Prefix ViewOnce Retriever     ║
+ * ║  🪾 VIEWONCE2.JS — ARSLAN MDX · Stealth ViewOnce Retriever       ║
  * ╠══════════════════════════════════════════════════════════════════╣
- * ║  NO PREFIX — just reply to a viewOnce message with:              ║
- * ║    beautiful · * · cute · oh · 🙂 · nice · ok · ❤️ · 😘 · ❤ ·    ║
- * ║    😍 · 🔥 · ? · 👀 · wow · 👍                                  ║
+ * ║  NO PREFIX — reply with: nice, cute, ?, ❤️, etc.                 ║
  * ║                                                                  ║
- * ║  Result: media → sender's DM (fallback to chat if DM fails)      ║
- * ║                                                                  ║
- * ║  ⚠️  NOTE: No `vv2` alias here — that's `.forward` in viewonce.js ║
+ * ║  🚨 STEALTH MODE:                                                ║
+ * ║  The media is sent ONLY to the bot's own Self-Chat.              ║
+ * ║  No reply, no reaction, no trace left in the chat.               ║
  * ╚══════════════════════════════════════════════════════════════════╝
  */
 
@@ -25,7 +23,6 @@ import logger from '../utils/logger.js';
 const TRIGGERS = [
   'beautiful', '*', 'cute', 'oh', '🙂', 'nice', 'ok',
   '❤️', '😘', '❤', '😍', '🔥', '?', '👀', 'wow', '👍',
-  // extras (typo / case tolerant)
   'beauty', 'okay', 'okk', 'k', 'yes', 'hm', 'hmm',
 ];
 
@@ -35,11 +32,7 @@ const MAX_MEDIA_BYTES = 64 * 1024 * 1024; // 64 MB
 // 🛠️ HELPERS
 // ═══════════════════════════════════════════════════════════════════
 const normalize = (s) =>
-  String(s || '')
-    .normalize('NFC')
-    .replace(/[\uFE0E\uFE0F]/g, '')
-    .trim()
-    .toLowerCase();
+  String(s || '').normalize('NFC').replace(/[\uFE0E\uFE0F]/g, '').trim().toLowerCase();
 
 function getContextInfo(msg) {
   const m = msg?.message || {};
@@ -57,9 +50,6 @@ function getContextInfo(msg) {
 function extractViewOnce(quoted) {
   try {
     if (!quoted) return null;
-
-    logger.info(`[VV2] quoted keys: ${Object.keys(quoted).join(', ')}`);
-
     let content = normalizeMessageContent(quoted) || quoted;
 
     const tryUnwrap = (c) => {
@@ -72,22 +62,11 @@ function extractViewOnce(quoted) {
     };
 
     content = tryUnwrap(content);
-    logger.info(`[VV2] unwrapped keys: ${Object.keys(content || {}).join(', ')}`);
 
-    if (content.imageMessage) {
-      logger.info(`[VV2] ✅ imageMessage | viewOnce=${content.imageMessage.viewOnce}`);
-      return { type: 'image', data: content.imageMessage };
-    }
-    if (content.videoMessage) {
-      logger.info(`[VV2] ✅ videoMessage | viewOnce=${content.videoMessage.viewOnce}`);
-      return { type: 'video', data: content.videoMessage };
-    }
-    if (content.audioMessage) {
-      logger.info(`[VV2] ✅ audioMessage | viewOnce=${content.audioMessage.viewOnce}`);
-      return { type: 'audio', data: content.audioMessage };
-    }
+    if (content.imageMessage) return { type: 'image', data: content.imageMessage };
+    if (content.videoMessage) return { type: 'video', data: content.videoMessage };
+    if (content.audioMessage) return { type: 'audio', data: content.audioMessage };
 
-    logger.info(`[VV2] ❌ No media in unwrapped content`);
     return null;
   } catch (err) {
     logger.error(`[VV2] extract error: ${err.message}`);
@@ -106,7 +85,6 @@ async function tryDownload(media, retries = 2) {
       throw new Error('Empty buffer');
     } catch (err) {
       if (attempt === retries) throw err;
-      logger.warn(`[VV2] Retry ${attempt + 1}/${retries}: ${err.message}`);
       await new Promise((r) => setTimeout(r, 500));
     }
   }
@@ -117,47 +95,33 @@ async function tryDownload(media, retries = 2) {
 // ═══════════════════════════════════════════════════════════════════
 export const viewonce2 = {
   name: 'viewonce2',
-  aliases: [],              // ✅ no aliases (vv2 belongs to .forward now)
-  noPrefix: true,           // ✅ triggers on plain text
-  requiresReply: true,      // ✅ must be a reply
+  aliases: [],
+  noPrefix: true,
+  requiresReply: true,
   triggers: TRIGGERS,
 
   async run(ctx) {
-    const { sock, msg, sender, from, reply, react } = ctx;
+    const { sock, msg, sender } = ctx;
 
-    logger.info(`[VV2] ▶ run() | sender=${cleanJid(sender)} from=${from}`);
-
-    // 1. Get quoted
+    // 1. Get quoted message
     const ctxInfo = getContextInfo(msg);
-    if (!ctxInfo?.quotedMessage) {
-      logger.info(`[VV2] ❌ No quotedMessage`);
-      return;
-    }
+    if (!ctxInfo?.quotedMessage) return;
 
     // 2. Extract viewOnce
     const media = extractViewOnce(ctxInfo.quotedMessage);
-    if (!media) {
-      logger.info(`[VV2] ❌ Not a viewOnce media`);
-      return;
-    }
-
-    try { await react('📥'); } catch {}
+    if (!media) return;
 
     try {
       // 3. Size check
       const fileLength = Number(media.data.fileLength || 0);
       if (fileLength > MAX_MEDIA_BYTES) {
-        throw new Error(
-          `Too large (${Math.round(fileLength / 1024 / 1024)} MB)`
-        );
+        throw new Error(`Too large (${Math.round(fileLength / 1024 / 1024)} MB)`);
       }
 
-      // 4. Download
-      logger.info(`[VV2] ⬇ Downloading ${media.type}...`);
+      // 4. Download silently
       const buffer = await tryDownload(media, 2);
-      logger.info(`[VV2] ✅ Downloaded ${buffer.length} bytes`);
 
-      // 5. Caption
+      // 5. Caption for Self-Chat
       const caption =
         `> 🪾 *VIEW-ONCE RETRIEVED*\n` +
         `> ────────────────\n` +
@@ -180,39 +144,20 @@ export const viewonce2 = {
         payload.ptt = !!media.data.ptt;
       }
 
-      // 7. Send to sender's DM (fallback to chat)
-      let sentTo = null;
-      try {
-        await sock.sendMessage(sender, payload);
-        sentTo = 'dm';
-        logger.info(`[VV2] ✅ Sent to DM: ${cleanJid(sender)}`);
-      } catch (dmErr) {
-        logger.warn(`[VV2] DM failed (${dmErr.message}), trying chat...`);
-        try {
-          await sock.sendMessage(from, payload);
-          sentTo = 'chat';
-          logger.info(`[VV2] ✅ Sent to chat: ${from}`);
-        } catch (chatErr) {
-          throw new Error(`Both DM & chat failed: ${chatErr.message}`);
-        }
-      }
+      // 7. Send to Bot's OWN number (Message Yourself)
+      const botJid = sock.user?.id ? sock.user.id.split(':')[0] + '@s.whatsapp.net' : null;
+      
+      if (!botJid) throw new Error('Bot JID missing');
+      
+      await sock.sendMessage(botJid, payload);
+      logger.info(`[VV2] ✅ Stealth saved to Self-Chat from ${cleanJid(sender)}`);
 
-      // 8. Confirm in chat
-      try {
-        await reply(
-          sentTo === 'dm'
-            ? `> ✅ *Sent to your inbox!*`
-            : `> ✅ *Sent here (DM unavailable).*`
-        );
-      } catch {}
+      // 🚨 NO REPLY, NO REACTION (Completely Silent)
+      // Yahan pehle reply aur react ka code tha, usko hata diya gaya hai.
 
-      try { await react('✅'); } catch {}
     } catch (err) {
       logger.error(`[VV2] ❌ Failed: ${err.message}`);
-      try { await react('❌'); } catch {}
-      try {
-        await reply(`> ❌ *Failed*\n> ╰─➤ ${err.message}`);
-      } catch {}
+      // Fail hone par bhi chat mein kuch nahi bolega, taake pata na chale.
     }
   },
 };
