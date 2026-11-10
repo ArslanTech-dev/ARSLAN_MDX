@@ -1,157 +1,189 @@
 /**
- * ═══════════════════════════════════════════════════════════════════
- * 👁️ VIEWONCE.JS — ARSLAN MDX View-Once Revealer
- * ═══════════════════════════════════════════════════════════════════
- * Commands: .vv (download & resend), .vv2 (forward without flag)
- * Supports: viewOnceMessage, viewOnceMessageV2, viewOnceMessageV2Extension
+ * ╔══════════════════════════════════════════════════════════════════╗
+ * ║  👁️ VIEWONCE.JS — ARSLAN MDX · View-Once Revealer (v2 Fixed)     ║
+ * ╠══════════════════════════════════════════════════════════════════╣
+ * ║  Commands:                                                       ║
+ * ║    • .vv / .viewonce / .reveal  → reveal in same chat            ║
+ * ║    • .forward / .fw             → same, but "forwarded" tag      ║
+ * ║                                                                  ║
+ * ║  NOTE: `.vv2` alias is now handled by `viewonce2.js` (no-prefix) ║
+ * ║  Fixes: size limit · retry · cooldown · all reply types          ║
+ * ╚══════════════════════════════════════════════════════════════════╝
  */
 
-import { downloadContentFromMessage, normalizeMessageContent } from '@whiskeysockets/baileys';
+import {
+  downloadContentFromMessage,
+  normalizeMessageContent,
+} from '@whiskeysockets/baileys';
+import { cleanJid } from '../utils/helper.js';
 import logger from '../utils/logger.js';
 
-// ─── HELPER: Download media from view-once message ───
-const downloadMedia = async (mediaKey, mediaType) => {
-    const stream = await downloadContentFromMessage(mediaKey, mediaType);
-    let buffer = Buffer.from([]);
-    for await (const chunk of stream) {
-        buffer = Buffer.concat([buffer, chunk]);
+const MAX_MEDIA_BYTES = 50 * 1024 * 1024; // 50 MB
+
+// ─── HELPER: Get contextInfo from any message type ───
+function getQuotedMessage(msg) {
+  const m = msg?.message || {};
+  const info =
+    m.extendedTextMessage?.contextInfo ||
+    m.imageMessage?.contextInfo ||
+    m.videoMessage?.contextInfo ||
+    m.audioMessage?.contextInfo ||
+    m.documentMessage?.contextInfo ||
+    m.stickerMessage?.contextInfo ||
+    null;
+  return info?.quotedMessage || null;
+}
+
+// ─── HELPER: Download media with retry ───
+const downloadMedia = async (mediaKey, mediaType, retries = 2) => {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const stream = await downloadContentFromMessage(mediaKey, mediaType);
+      const chunks = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      const buffer = Buffer.concat(chunks);
+      if (buffer.length) return buffer;
+      throw new Error('Empty buffer');
+    } catch (err) {
+      if (attempt === retries) throw err;
+      logger.warn(`[VV] Retry ${attempt + 1}/${retries}: ${err.message}`);
+      await new Promise((r) => setTimeout(r, 500));
     }
-    return buffer;
+  }
 };
 
 // ─── HELPER: Extract View-Once Content (Universal) ───
 function extractViewOnce(quotedMsg) {
-    // Unwrap all view-once variants
-    let normalized = normalizeMessageContent(quotedMsg);
-    if (!normalized) normalized = quotedMsg;
+  let normalized = normalizeMessageContent(quotedMsg) || quotedMsg;
 
-    if (normalized.imageMessage) return { type: 'image', content: normalized.imageMessage };
-    if (normalized.videoMessage) return { type: 'video', content: normalized.videoMessage };
-    if (normalized.audioMessage) return { type: 'audio', content: normalized.audioMessage };
-    if (normalized.conversation) return { type: 'text', content: normalized.conversation };
-    if (normalized.extendedTextMessage) return { type: 'text', content: normalized.extendedTextMessage.text };
+  // Unwrap any remaining viewOnce variants
+  const tryUnwrap = (c) => {
+    if (!c) return c;
+    if (c.viewOnceMessage?.message)             return tryUnwrap(c.viewOnceMessage.message);
+    if (c.viewOnceMessageV2?.message)           return tryUnwrap(c.viewOnceMessageV2.message);
+    if (c.viewOnceMessageV2Extension?.message)  return tryUnwrap(c.viewOnceMessageV2Extension.message);
+    if (c.ephemeralMessage?.message)            return tryUnwrap(c.ephemeralMessage.message);
+    return c;
+  };
 
-    return null;
+  normalized = tryUnwrap(normalized);
+
+  if (normalized.imageMessage)         return { type: 'image', content: normalized.imageMessage };
+  if (normalized.videoMessage)         return { type: 'video', content: normalized.videoMessage };
+  if (normalized.audioMessage)         return { type: 'audio', content: normalized.audioMessage };
+  if (normalized.conversation)         return { type: 'text',  content: normalized.conversation };
+  if (normalized.extendedTextMessage)  return { type: 'text',  content: normalized.extendedTextMessage.text };
+
+  return null;
+}
+
+// ─── HELPER: Cooldown (3s per user) ───
+const cooldown = new Map();
+const digits = (jid) => String(jid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
+function onCooldown(ctx) {
+  const key = digits(ctx.sender) || ctx.from;
+  const now = Date.now();
+  if (now - (cooldown.get(key) || 0) < 3000) return true;
+  cooldown.set(key, now);
+  if (cooldown.size > 500) cooldown.delete(cooldown.keys().next().value);
+  return false;
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 1. VV — Download & Send as Normal Media
+// 🏭 COMMAND FACTORY (shared by vv & forward)
 // ═══════════════════════════════════════════════════════════════════
-export const vv = {
+function createRevealCommand({ name, aliases, emoji, title, label }) {
+  return {
+    name,
+    aliases,
+    async run(ctx) {
+      try {
+        const quotedMsg = getQuotedMessage(ctx.msg);
+        if (!quotedMsg) {
+          return ctx.reply(
+            `> ❌ Reply karo kisi *View-Once* photo/video/voice pe.`
+          );
+        }
+
+        const vvData = extractViewOnce(quotedMsg);
+        if (!vvData) {
+          return ctx.reply(
+            `> ❌ Ye View-Once message nahi hai.\n` +
+            `> ╰─➤ Ya media *expired* ho chuki hai.`
+          );
+        }
+
+        if (onCooldown(ctx)) return;
+        try { await ctx.react(emoji); } catch {}
+
+        const { type, content } = vvData;
+
+        // Size check
+        const fileLength = Number(content.fileLength || 0);
+        if (fileLength > MAX_MEDIA_BYTES) {
+          throw new Error(
+            `Media too large (${Math.round(fileLength / 1024 / 1024)} MB)`
+          );
+        }
+
+        // Caption
+        let caption = `> ${emoji} *${title}*\n`;
+        caption += `> ────────────────\n`;
+        caption += `> 📁 \`Type : ${type.toUpperCase()}\`\n`;
+        if (content.caption) caption += `> 📝 \`Caption : ${content.caption}\`\n`;
+        caption += `> ────────────────\n`;
+        caption += `> 💫 _POWERED BY ARSLAN MD_`;
+
+        // Send
+        if (type === 'image') {
+          const buffer = await downloadMedia(content, 'image');
+          await ctx.send({ image: buffer, caption });
+        } else if (type === 'video') {
+          const buffer = await downloadMedia(content, 'video');
+          await ctx.send({ video: buffer, caption });
+        } else if (type === 'audio') {
+          const buffer = await downloadMedia(content, 'audio');
+          await ctx.send({
+            audio: buffer,
+            mimetype: 'audio/ogg; codecs=opus',
+            ptt: true,
+          });
+        } else if (type === 'text') {
+          const text = content.text || content;
+          await ctx.reply(
+            `> ${emoji} *${label}*\n\n> ${text}\n\n> 💫 _POWERED BY ARSLAN MD_`
+          );
+        }
+
+        logger.info(`[${name.toUpperCase()}] ✅ ${type} revealed for ${cleanJid(ctx.sender)}`);
+        try { await ctx.react('✅'); } catch {}
+      } catch (err) {
+        logger.error(`[${name.toUpperCase()}] Failed: ${err.message}`);
+        try { await ctx.react('❌'); } catch {}
+        await ctx.reply(`> ❌ *Error:*\n> ╰─➤ ${err.message}`);
+      }
+    },
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 📦 COMMANDS
+// ═══════════════════════════════════════════════════════════════════
+
+/** `.vv` — reveal in same chat */
+export const vv = createRevealCommand({
   name: 'vv',
   aliases: ['viewonce', 'reveal'],
-  async run(ctx) {
-    try {
-      const quotedMsg = ctx.msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-      
-      if (!quotedMsg) {
-        return ctx.reply(`> ❌ Reply karo kisi View-Once photo/video/voice pe.`);
-      }
+  emoji: '🔓',
+  title: 'VIEW-ONCE REVEALED',
+  label: 'VIEW-ONCE TEXT',
+});
 
-      const vvData = extractViewOnce(quotedMsg);
-      if (!vvData) {
-        return ctx.reply(`> ❌ Ye View-Once message nahi hai.\n> Ya media recover nahi ho saka.`);
-      }
-
-      await ctx.react('⏳');
-
-      const { type, content } = vvData;
-      
-      // 🎨 Simple Caption
-      let caption = `> 🔓 *VIEW-ONCE REVEALED*\n> 📁 *Type:* ${type.toUpperCase()}`;
-      if (content.caption) caption += `\n> 📝 *Caption:* ${content.caption}`;
-      caption += `\n\n> © POWERED BY ARSLAN MD`;
-
-      // Handle Media Types
-      if (type === 'image') {
-        const buffer = await downloadMedia(content, 'image');
-        await ctx.send({ image: buffer, caption });
-      } 
-      else if (type === 'video') {
-        const buffer = await downloadMedia(content, 'video');
-        await ctx.send({ video: buffer, caption });
-      } 
-      else if (type === 'audio') {
-        const buffer = await downloadMedia(content, 'audio');
-        await ctx.send({ 
-          audio: buffer, 
-          mimetype: 'audio/ogg; codecs=opus', 
-          ptt: true 
-        });
-      } 
-      else if (type === 'text') {
-        const text = content.text || content;
-        await ctx.reply(`> 🔓 *VIEW-ONCE TEXT*\n\n> ${text}\n\n> © POWERED BY ARSLAN MD`);
-      }
-
-      logger.success(`[VV] ${type} revealed successfully.`);
-      await ctx.react('✅');
-
-    } catch (err) {
-      logger.error(`[VV] Failed: ${err.message}`);
-      await ctx.react('❌');
-      await ctx.reply(`> ❌ *Error:* ${err.message}`);
-    }
-  }
-};
-
-// ═══════════════════════════════════════════════════════════════════
-// 2. VV2 — Forward Without View-Once Flag
-// ═══════════════════════════════════════════════════════════════════
-export const vv2 = {
-  name: 'vv2',
-  aliases: ['forward', 'fw'],
-  async run(ctx) {
-    try {
-      const quotedMsg = ctx.msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-      
-      if (!quotedMsg) {
-        return ctx.reply(`> ❌ Reply karo kisi View-Once message pe.`);
-      }
-
-      const vvData = extractViewOnce(quotedMsg);
-      if (!vvData) {
-        return ctx.reply(`> ❌ Ye View-Once message nahi hai.`);
-      }
-
-      await ctx.react('🔄');
-
-      const { type, content } = vvData;
-
-      // 🎨 Simple Caption
-      let caption = `> 🔄 *FORWARDED FROM VIEW-ONCE*\n> 📁 *Type:* ${type.toUpperCase()}`;
-      if (content.caption) caption += `\n> 📝 *Caption:* ${content.caption}`;
-      caption += `\n\n> © POWERED BY ARSLAN MD`;
-
-      // Handle Media Types
-      if (type === 'image') {
-        const buffer = await downloadMedia(content, 'image');
-        await ctx.send({ image: buffer, caption });
-      } 
-      else if (type === 'video') {
-        const buffer = await downloadMedia(content, 'video');
-        await ctx.send({ video: buffer, caption });
-      } 
-      else if (type === 'audio') {
-        const buffer = await downloadMedia(content, 'audio');
-        await ctx.send({ 
-          audio: buffer, 
-          mimetype: 'audio/ogg; codecs=opus', 
-          ptt: true 
-        });
-      } 
-      else if (type === 'text') {
-        const text = content.text || content;
-        await ctx.reply(`> 🔄 *FORWARDED TEXT*\n\n> ${text}\n\n> © POWERED BY ARSLAN MD`);
-      }
-
-      logger.success(`[VV2] ${type} forwarded successfully.`);
-      await ctx.react('✅');
-
-    } catch (err) {
-      logger.error(`[VV2] Failed: ${err.message}`);
-      await ctx.react('❌');
-      await ctx.reply(`> ❌ *Error:* ${err.message}`);
-    }
-  }
-};
+/** `.forward` — forward without viewonce flag (renamed from vv2) */
+export const forward = createRevealCommand({
+  name: 'forward',
+  aliases: ['fw'],
+  emoji: '🔄',
+  title: 'FORWARDED FROM VIEW-ONCE',
+  label: 'FORWARDED TEXT',
+});
