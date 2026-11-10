@@ -1,15 +1,14 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════╗
- * ║  🪾 VIEWONCE2.JS — ARSLAN MDX · View-Once Retriever (v1)         ║
+ * ║  🪾 VIEWONCE2.JS — ARSLAN MDX · No-Prefix ViewOnce Retriever     ║
  * ╠══════════════════════════════════════════════════════════════════╣
- * ║  NO PREFIX required.                                             ║
- * ║                                                                  ║
- * ║  HOW: Reply to ANY viewOnce photo/video/voice with one trigger:  ║
- * ║    beautiful · * · cute · oh · 🙂 · nice · ok · ❤️ · 😘 · ❤ ·     ║
+ * ║  NO PREFIX — just reply to a viewOnce message with:              ║
+ * ║    beautiful · * · cute · oh · 🙂 · nice · ok · ❤️ · 😘 · ❤ ·    ║
  * ║    😍 · 🔥 · ? · 👀 · wow · 👍                                  ║
  * ║                                                                  ║
- * ║  Result: The viewOnce media is downloaded and sent to the        ║
- * ║          sender's DM/inbox.                                     ║
+ * ║  Result: media → sender's DM (fallback to chat if DM fails)      ║
+ * ║                                                                  ║
+ * ║  ⚠️  NOTE: No `vv2` alias here — that's `.forward` in viewonce.js ║
  * ╚══════════════════════════════════════════════════════════════════╝
  */
 
@@ -21,19 +20,20 @@ import { cleanJid } from '../utils/helper.js';
 import logger from '../utils/logger.js';
 
 // ═══════════════════════════════════════════════════════════════════
-// 🎯 TRIGGERS — exact list from ARSLAN MDX update
+// 🎯 TRIGGERS
 // ═══════════════════════════════════════════════════════════════════
 const TRIGGERS = [
   'beautiful', '*', 'cute', 'oh', '🙂', 'nice', 'ok',
   '❤️', '😘', '❤', '😍', '🔥', '?', '👀', 'wow', '👍',
+  // extras (typo / case tolerant)
+  'beauty', 'okay', 'okk', 'k', 'yes', 'hm', 'hmm',
 ];
+
+const MAX_MEDIA_BYTES = 64 * 1024 * 1024; // 64 MB
 
 // ═══════════════════════════════════════════════════════════════════
 // 🛠️ HELPERS
 // ═══════════════════════════════════════════════════════════════════
-const MAX_MEDIA_BYTES = 64 * 1024 * 1024; // 64 MB
-
-/** Normalize — strip variation selectors so ❤️ & ❤ match */
 const normalize = (s) =>
   String(s || '')
     .normalize('NFC')
@@ -41,31 +41,6 @@ const normalize = (s) =>
     .trim()
     .toLowerCase();
 
-/** Check if quoted message contains viewOnce media */
-function extractViewOnce(quotedMessage) {
-  try {
-    if (!quotedMessage) return null;
-    const content = normalizeMessageContent(quotedMessage) || quotedMessage;
-
-    // Unwrap viewOnce containers
-    const inner =
-      content.viewOnceMessage?.message ||
-      content.viewOnceMessageV2?.message ||
-      content.viewOnceMessageV2Extension?.message ||
-      content;
-
-    if (inner.imageMessage) return { type: 'image', data: inner.imageMessage };
-    if (inner.videoMessage) return { type: 'video', data: inner.videoMessage };
-    if (inner.audioMessage) return { type: 'audio', data: inner.audioMessage };
-
-    return null;
-  } catch (err) {
-    logger.error(`[VIEWONCE2] Extract failed: ${err.message}`);
-    return null;
-  }
-}
-
-/** Find contextInfo from any message type */
 function getContextInfo(msg) {
   const m = msg?.message || {};
   return (
@@ -79,26 +54,92 @@ function getContextInfo(msg) {
   );
 }
 
+function extractViewOnce(quoted) {
+  try {
+    if (!quoted) return null;
+
+    logger.info(`[VV2] quoted keys: ${Object.keys(quoted).join(', ')}`);
+
+    let content = normalizeMessageContent(quoted) || quoted;
+
+    const tryUnwrap = (c) => {
+      if (!c) return c;
+      if (c.viewOnceMessage?.message)             return tryUnwrap(c.viewOnceMessage.message);
+      if (c.viewOnceMessageV2?.message)           return tryUnwrap(c.viewOnceMessageV2.message);
+      if (c.viewOnceMessageV2Extension?.message)  return tryUnwrap(c.viewOnceMessageV2Extension.message);
+      if (c.ephemeralMessage?.message)            return tryUnwrap(c.ephemeralMessage.message);
+      return c;
+    };
+
+    content = tryUnwrap(content);
+    logger.info(`[VV2] unwrapped keys: ${Object.keys(content || {}).join(', ')}`);
+
+    if (content.imageMessage) {
+      logger.info(`[VV2] ✅ imageMessage | viewOnce=${content.imageMessage.viewOnce}`);
+      return { type: 'image', data: content.imageMessage };
+    }
+    if (content.videoMessage) {
+      logger.info(`[VV2] ✅ videoMessage | viewOnce=${content.videoMessage.viewOnce}`);
+      return { type: 'video', data: content.videoMessage };
+    }
+    if (content.audioMessage) {
+      logger.info(`[VV2] ✅ audioMessage | viewOnce=${content.audioMessage.viewOnce}`);
+      return { type: 'audio', data: content.audioMessage };
+    }
+
+    logger.info(`[VV2] ❌ No media in unwrapped content`);
+    return null;
+  } catch (err) {
+    logger.error(`[VV2] extract error: ${err.message}`);
+    return null;
+  }
+}
+
+async function tryDownload(media, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const stream = await downloadContentFromMessage(media.data, media.type);
+      const chunks = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      const buffer = Buffer.concat(chunks);
+      if (buffer.length) return buffer;
+      throw new Error('Empty buffer');
+    } catch (err) {
+      if (attempt === retries) throw err;
+      logger.warn(`[VV2] Retry ${attempt + 1}/${retries}: ${err.message}`);
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // 📦 PLUGIN
 // ═══════════════════════════════════════════════════════════════════
 export const viewonce2 = {
   name: 'viewonce2',
-  aliases: ['vv2'],
-  noPrefix: true,       // 🔑 no prefix needed
-  requiresReply: true,  // 🔑 only trigger if msg is a reply
+  aliases: [],              // ✅ no aliases (vv2 belongs to .forward now)
+  noPrefix: true,           // ✅ triggers on plain text
+  requiresReply: true,      // ✅ must be a reply
   triggers: TRIGGERS,
 
   async run(ctx) {
     const { sock, msg, sender, from, reply, react } = ctx;
 
-    // 1. Get quoted message
+    logger.info(`[VV2] ▶ run() | sender=${cleanJid(sender)} from=${from}`);
+
+    // 1. Get quoted
     const ctxInfo = getContextInfo(msg);
-    if (!ctxInfo?.quotedMessage) return;
+    if (!ctxInfo?.quotedMessage) {
+      logger.info(`[VV2] ❌ No quotedMessage`);
+      return;
+    }
 
     // 2. Extract viewOnce
     const media = extractViewOnce(ctxInfo.quotedMessage);
-    if (!media) return; // not a viewonce → silently ignore
+    if (!media) {
+      logger.info(`[VV2] ❌ Not a viewOnce media`);
+      return;
+    }
 
     try { await react('📥'); } catch {}
 
@@ -107,58 +148,70 @@ export const viewonce2 = {
       const fileLength = Number(media.data.fileLength || 0);
       if (fileLength > MAX_MEDIA_BYTES) {
         throw new Error(
-          `Media too large (${Math.round(fileLength / 1024 / 1024)} MB)`
+          `Too large (${Math.round(fileLength / 1024 / 1024)} MB)`
         );
       }
 
       // 4. Download
-      const stream = await downloadContentFromMessage(media.data, media.type);
-      const chunks = [];
-      for await (const chunk of stream) chunks.push(chunk);
-      const buffer = Buffer.concat(chunks);
+      logger.info(`[VV2] ⬇ Downloading ${media.type}...`);
+      const buffer = await tryDownload(media, 2);
+      logger.info(`[VV2] ✅ Downloaded ${buffer.length} bytes`);
 
-      if (!buffer.length) throw new Error('Empty media');
-
-      // 5. Build caption
+      // 5. Caption
       const caption =
         `> 🪾 *VIEW-ONCE RETRIEVED*\n` +
         `> ────────────────\n` +
-        `> 📥 \`Type  : ${media.type.toUpperCase()}\`\n` +
-        `> 👤 \`From  : @${cleanJid(sender)}\`\n` +
-        `> 📊 \`Size  : ${Math.round(buffer.length / 1024)} KB\`\n` +
+        `> 📥 \`Type : ${media.type.toUpperCase()}\`\n` +
+        `> 👤 \`From : @${cleanJid(sender)}\`\n` +
+        `> 📊 \`Size : ${Math.round(buffer.length / 1024)} KB\`\n` +
+        (media.data.caption ? `> 📝 \`Caption : ${media.data.caption}\`\n` : '') +
         `> ────────────────\n` +
         `> 💫 _POWERED BY ARSLAN MD_ 💫`;
 
-      // 6. Send to sender's DM
+      // 6. Payload
       const payload = { caption, mentions: [sender] };
-
-      if (media.type === 'image') payload.image = buffer;
-      else if (media.type === 'video') payload.video = buffer;
-      else if (media.type === 'audio') {
+      if (media.type === 'image') {
+        payload.image = buffer;
+      } else if (media.type === 'video') {
+        payload.video = buffer;
+      } else if (media.type === 'audio') {
         payload.audio = buffer;
-        payload.mimetype = media.data.mimetype || 'audio/mp4';
+        payload.mimetype = media.data.mimetype || 'audio/ogg; codecs=opus';
         payload.ptt = !!media.data.ptt;
       }
 
-      await sock.sendMessage(sender, payload);
-
-      // 7. Confirm in current chat
+      // 7. Send to sender's DM (fallback to chat)
+      let sentTo = null;
       try {
-        await reply(`> ✅ *Sent to your inbox!*`);
+        await sock.sendMessage(sender, payload);
+        sentTo = 'dm';
+        logger.info(`[VV2] ✅ Sent to DM: ${cleanJid(sender)}`);
+      } catch (dmErr) {
+        logger.warn(`[VV2] DM failed (${dmErr.message}), trying chat...`);
+        try {
+          await sock.sendMessage(from, payload);
+          sentTo = 'chat';
+          logger.info(`[VV2] ✅ Sent to chat: ${from}`);
+        } catch (chatErr) {
+          throw new Error(`Both DM & chat failed: ${chatErr.message}`);
+        }
+      }
+
+      // 8. Confirm in chat
+      try {
+        await reply(
+          sentTo === 'dm'
+            ? `> ✅ *Sent to your inbox!*`
+            : `> ✅ *Sent here (DM unavailable).*`
+        );
       } catch {}
 
       try { await react('✅'); } catch {}
-      logger.info(
-        `[VIEWONCE2] ✅ Retrieved ${media.type} for ${cleanJid(sender)}`
-      );
     } catch (err) {
-      logger.error(`[VIEWONCE2] ❌ Failed: ${err.message}`);
+      logger.error(`[VV2] ❌ Failed: ${err.message}`);
       try { await react('❌'); } catch {}
       try {
-        await reply(
-          `> ❌ *Failed to retrieve view-once*\n` +
-          `> ╰─➤ ${err.message}`
-        );
+        await reply(`> ❌ *Failed*\n> ╰─➤ ${err.message}`);
       } catch {}
     }
   },
