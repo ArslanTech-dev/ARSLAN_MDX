@@ -1,16 +1,11 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🧩 MESSAGE.JS — ARSLAN MDX · Ultimate Router (v4 Robust + Debug)
+ * 🧩 MESSAGE.JS — ARSLAN MDX (Ultimate Strong Version v5)
  * ═══════════════════════════════════════════════════════════════════
- * ✅ No-prefix plugin support (viewonce2 etc.)
- * ✅ Robust anti-delete (multi-variant detection, retry, size cap)
- * ✅ Robust anti-call (status filter, dedupe, owner notify)
- * ✅ Debug logging at every step
- */
-/**
- * ═══════════════════════════════════════════════════════════════════
- * 🧩 MESSAGE.JS — ARSLAN MDX (Simple & Fixed Version)
- * ═══════════════════════════════════════════════════════════════════
+ * ✅ Perfect Self-JID Recognition (Fixes Kick/Promote/Welcome)
+ * ✅ Premium Design for AntiDelete & AntiCall
+ * ✅ Strong AntiLink (With Admin checks)
+ * ✅ Proper Mentions & Welcome/Goodbye
  */
 
 import fs from 'fs';
@@ -35,6 +30,15 @@ let loaded = false;
 
 // ─── MESSAGE CACHE (Anti-Delete) ───
 const messageCache = new Map();
+
+// ===============================================
+// 🛠️ HELPER: Get Bot's Exact JID (Fixes Admin Recognition)
+// ===============================================
+function getBotJid(sock) {
+  if (!sock.user?.id) return null;
+  const cleanId = sock.user.id.split(':')[0].split('@')[0];
+  return `${cleanId}@s.whatsapp.net`;
+}
 
 // ===============================================
 // 🔄 LOAD PLUGINS
@@ -70,7 +74,7 @@ export async function loadPlugins() {
 }
 
 // ===============================================
-// 🔗 ANTILINK
+// 🔗 ANTILINK (Strong)
 // ===============================================
 const LINK_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+|chat\.whatsapp\.com\/[^\s]+|wa\.me\/[^\s]+)/i;
 
@@ -82,30 +86,32 @@ async function handleAntilink(sock, msg, from, sender) {
     if (isOwner(sender) || msg.key.fromMe) return false;
 
     const meta = await sock.groupMetadata(from);
-    const isAdmin = meta.participants.some((p) => cleanJid(p.id) === cleanJid(sender) && p.admin);
-    if (isAdmin) return false;
+    const isSenderAdmin = meta.participants.some((p) => cleanJid(p.id) === cleanJid(sender) && p.admin);
+    if (isSenderAdmin) return false;
 
-    const botJid = sock.user?.id?.split(':')[0] + '@s.whatsapp.net';
+    const botJid = getBotJid(sock);
     const isBotAdmin = meta.participants.some((p) => cleanJid(p.id) === cleanJid(botJid) && p.admin);
     if (!isBotAdmin) return false;
 
     await sock.sendMessage(from, { delete: msg.key });
+    logger.info(`[ANTILINK] Deleted link from ${cleanJid(sender)}`);
     return true;
   } catch { return false; }
 }
 
 // ===============================================
-// 🗑️ ANTI-DELETE (Simple)
+// 🗑️ ANTI-DELETE (Premium Design & Strong)
 // ===============================================
 async function handleAntidelete(sock, updates) {
   try {
     const db = await readDb();
     if (!db.global_settings?.antiDelete) return;
 
-    const botJid = sock.user?.id ? sock.user.id.split(':')[0] + '@s.whatsapp.net' : null;
+    const botJid = getBotJid(sock);
     if (!botJid) return;
 
     for (const u of updates) {
+      // Detect all types of deletions
       const isDeleted = u.update?.message === null || u.update?.messageStubType === 1 || u.update?.messageStubParameters?.[0] === 'Message deleted';
       if (!isDeleted) continue;
 
@@ -118,13 +124,23 @@ async function handleAntidelete(sock, updates) {
         continue;
       }
 
-      const header = `> 🛡️ *ANTI-DELETE TRIGGERED*\n> \n> 👤 *Sender:* @${cleanJid(sender)}\n> 📍 *Chat:* ${isGroup(from) ? 'Group' : 'DM'}\n> 🕒 *Time:* ${nowTime()}\n\n> © POWERED BY ARSLAN MD`;
+      // 🎨 PREMIUM DESIGN
+      const header = 
+        `> 🛡️ *ANTI-DELETE TRIGGERED*\n` +
+        `> ────────────────\n` +
+        `> 👤 \`Sender : @${cleanJid(sender)}\`\n` +
+        `> 📍 \`Chat   : ${isGroup(from) ? 'Group' : 'DM'}\`\n` +
+        `> 🕒 \`Time   : ${nowTime()}\`\n` +
+        `> ────────────────\n` +
+        `> 💫 _POWERED BY ARSLAN MD_ 💫`;
+
       const m = originalMsg.message;
       let mediaType = null, mediaData = null;
 
       if (m.imageMessage) { mediaType = 'image'; mediaData = m.imageMessage; }
       else if (m.videoMessage) { mediaType = 'video'; mediaData = m.videoMessage; }
       else if (m.audioMessage) { mediaType = 'audio'; mediaData = m.audioMessage; }
+      else if (m.stickerMessage) { mediaType = 'sticker'; mediaData = m.stickerMessage; }
 
       try {
         if (mediaType && mediaData) {
@@ -137,6 +153,7 @@ async function handleAntidelete(sock, updates) {
           if (mediaType === 'image') payload.image = buffer;
           else if (mediaType === 'video') payload.video = buffer;
           else if (mediaType === 'audio') { payload.audio = buffer; payload.mimetype = 'audio/mp4'; }
+          else if (mediaType === 'sticker') payload.sticker = buffer;
 
           await sock.sendMessage(botJid, payload);
         } else {
@@ -144,8 +161,7 @@ async function handleAntidelete(sock, updates) {
           if (text) await sock.sendMessage(botJid, { text: `${header}\n\n> 📝 *Message:* ${text}`, mentions: [sender] });
         }
       } catch (e) {
-        // Media expired fallback
-        await sock.sendMessage(botJid, { text: `${header}\n\n> ⚠️ Media expired.` });
+        await sock.sendMessage(botJid, { text: `${header}\n\n> ⚠️ Media expired/undownloadable.` });
       }
       messageCache.delete(u.key.id);
     }
@@ -155,7 +171,7 @@ async function handleAntidelete(sock, updates) {
 }
 
 // ===============================================
-// 📵 ANTI-CALL (Simple)
+// 📵 ANTI-CALL (Premium Design)
 // ===============================================
 async function handleAntiCall(sock, calls) {
   try {
@@ -165,7 +181,18 @@ async function handleAntiCall(sock, calls) {
     for (const call of calls) {
       if (call.status === 'offer') {
         await sock.rejectCall(call.id, call.from);
-        await sock.sendMessage(call.from, { text: `> 📵 *ANTI-CALL*\n> \n> Calls are auto-rejected.\n> Please send a text message.` });
+        
+        // 🎨 PREMIUM DESIGN
+        const callMsg = 
+          `> 📵 *ANTI-CALL SYSTEM*\n` +
+          `> ────────────────\n` +
+          `> ⛔ \`Status : Call Auto-Rejected\`\n` +
+          `> 💬 \`Reason : Security Protocol\`\n` +
+          `> ────────────────\n` +
+          `> 👉 _Please send a text message instead._\n\n` +
+          `> 💫 _POWERED BY ARSLAN MD_ 💫`;
+          
+        await sock.sendMessage(call.from, { text: callMsg });
       }
     }
   } catch (err) {
@@ -174,25 +201,49 @@ async function handleAntiCall(sock, calls) {
 }
 
 // ===============================================
-// 👋 WELCOME / GOODBYE
+// 👋 WELCOME / GOODBYE (Fixed & Strong)
 // ===============================================
 async function handleGroupParticipants(sock, update) {
   try {
     const { id, participants, action } = update;
     const settings = await getGroupSettings(id);
+    const meta = await sock.groupMetadata(id);
+
+    // 🟢 WELCOME (JOIN)
     if (action === 'add' && settings.welcome) {
-      const meta = await sock.groupMetadata(id);
       for (const jid of participants) {
-        await sock.sendMessage(id, { text: `> 💚 *WELCOME*\n> Hey @${cleanJid(jid)}, welcome to *${meta.subject}*!`, mentions: [jid] });
+        const userNum = jid.split('@')[0];
+        const caption = 
+          `> 💚 *WELCOME TO THE GROUP*\n` +
+          `> ────────────────\n` +
+          `> 👋 \`Hey @${userNum},\`\n` +
+          `> Welcome to *${meta.subject}*!\n` +
+          `> 🎉 We are glad to have you here.\n` +
+          `> ────────────────\n` +
+          `> 💫 _POWERED BY ARSLAN MD_ 💫`;
+          
+        await sock.sendMessage(id, { text: caption, mentions: [jid] });
       }
     }
+
+    // 🔴 GOODBYE (LEAVE/KICK)
     if (action === 'remove' && settings.goodbye) {
-      const meta = await sock.groupMetadata(id);
       for (const jid of participants) {
-        await sock.sendMessage(id, { text: `> 💔 *GOODBYE*\n> @${cleanJid(jid)} has left *${meta.subject}*.`, mentions: [jid] });
+        const userNum = jid.split('@')[0];
+        const caption = 
+          `> 💔 *GOODBYE*\n` +
+          `> ────────────────\n` +
+          `> 👋 \`@${userNum}\` has left the group.\n` +
+          `> 🥀 We will miss you in *${meta.subject}*.\n` +
+          `> ────────────────\n` +
+          `> 💫 _POWERED BY ARSLAN MD_ 💫`;
+
+        await sock.sendMessage(id, { text: caption, mentions: [jid] });
       }
     }
-  } catch {}
+  } catch (err) {
+    logger.error(`[GroupUpdate] Error: ${err.message}`);
+  }
 }
 
 // ===============================================
@@ -232,7 +283,7 @@ export async function handleMessage(sock, msg, sessionNumber) {
     if (from === 'status@broadcast' || from.endsWith('@newsletter')) return;
     if (isPayloadBugged(text)) return;
 
-    // Anti-Spam (Owner exempt)
+    // Anti-Spam
     if (!owner) {
       const spamCheck = await isSpamming(sender);
       if (spamCheck.spam) return;
@@ -247,25 +298,23 @@ export async function handleMessage(sock, msg, sessionNumber) {
       }
     } catch {}
 
-    // ─────────────────────────────────────────────
-    // 🆕 NO-PREFIX PLUGIN CHECK (Must be BEFORE fromMe check)
-    // ─────────────────────────────────────────────
+    // 🆕 NO-PREFIX PLUGIN CHECK
     const noPrefixPlugin = findNoPrefixPlugin(text);
     if (noPrefixPlugin && hasReply(msg)) {
       const ctx = {
         sock, msg, from, sender, isGroup: group, isOwner: owner,
         args: [], text, command: noPrefixPlugin.name, prefix: CONFIG.PREFIX, sessionNumber,
-        botNumber: sock.user?.id?.split(':')[0],
+        botNumber: cleanJid(getBotJid(sock)),
         reply: (t, opts = {}) => sock.sendMessage(from, { text: t, ...opts }, { quoted: msg }),
         react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } }).catch(() => {}),
         send: (content, opts = {}) => sock.sendMessage(from, content, { quoted: msg, ...opts }),
       };
       try { await sock.readMessages([msg.key]); } catch {}
       try { await noPrefixPlugin.run(ctx); } catch (err) { logger.error(`[NoPrefix] ${err.message}`); }
-      return; // Handled
+      return;
     }
 
-    // Bot's own non-command messages (Skip)
+    // Skip bot's own non-command messages
     if (msg.key.fromMe) {
       if (!text || !text.startsWith(CONFIG.PREFIX)) return;
     }
@@ -277,9 +326,7 @@ export async function handleMessage(sock, msg, sessionNumber) {
 
     if (!text) return;
 
-    // ─────────────────────────────────────────────
     // PREFIX COMMANDS
-    // ─────────────────────────────────────────────
     const prefix = CONFIG.PREFIX;
     if (!text.startsWith(prefix)) return;
 
@@ -298,7 +345,7 @@ export async function handleMessage(sock, msg, sessionNumber) {
     const ctx = {
       sock, msg, from, sender, isGroup: group, isOwner: owner,
       args, text, command: plugin.name, prefix, sessionNumber,
-      botNumber: sock.user?.id?.split(':')[0],
+      botNumber: cleanJid(getBotJid(sock)), // ✅ Fixed Bot JID
       reply: (t, opts = {}) => sock.sendMessage(from, { text: t, ...opts }, { quoted: msg }),
       react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } }).catch(() => {}),
       send: (content, opts = {}) => sock.sendMessage(from, content, { quoted: msg, ...opts }),
