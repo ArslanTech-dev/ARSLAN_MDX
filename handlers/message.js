@@ -1,11 +1,11 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🧩 MESSAGE.JS — ARSLAN MDX (Ultimate Strong Version v5)
+ * 🧩 MESSAGE.JS — ARSLAN MDX (Ultimate v5 - LID Fixed)
  * ═══════════════════════════════════════════════════════════════════
+ * ✅ Fixed `@lid` Owner issue (Access Denied fix)
  * ✅ Perfect Self-JID Recognition (Fixes Kick/Promote/Welcome)
  * ✅ Premium Design for AntiDelete & AntiCall
- * ✅ Strong AntiLink (With Admin checks)
- * ✅ Proper Mentions & Welcome/Goodbye
+ * ✅ Strong AntiLink
  */
 
 import fs from 'fs';
@@ -32,7 +32,7 @@ let loaded = false;
 const messageCache = new Map();
 
 // ===============================================
-// 🛠️ HELPER: Get Bot's Exact JID (Fixes Admin Recognition)
+// 🛠️ HELPER: Get Bot's Exact JID
 // ===============================================
 function getBotJid(sock) {
   if (!sock.user?.id) return null;
@@ -111,7 +111,6 @@ async function handleAntidelete(sock, updates) {
     if (!botJid) return;
 
     for (const u of updates) {
-      // Detect all types of deletions
       const isDeleted = u.update?.message === null || u.update?.messageStubType === 1 || u.update?.messageStubParameters?.[0] === 'Message deleted';
       if (!isDeleted) continue;
 
@@ -276,9 +275,14 @@ export async function handleMessage(sock, msg, sessionNumber) {
 
     const from = msg.key.remoteJid;
     const group = isGroup(from);
-    const sender = getSender(msg);
     const text = extractText(msg);
-    const owner = isOwner(sender);
+    
+    // 🚨 FIX: Bot ki LID aur fromMe ko perfectly pehchano
+    const botJid = getBotJid(sock);
+    const sender = msg.key.fromMe ? botJid : getSender(msg);
+    
+    // Owner true hoga agar message `fromMe` (bot/owner ke phone) se aaya hai
+    const owner = msg.key.fromMe || isOwner(sender) || cleanJid(sender) === cleanJid(botJid);
 
     if (from === 'status@broadcast' || from.endsWith('@newsletter')) return;
     if (isPayloadBugged(text)) return;
@@ -304,7 +308,7 @@ export async function handleMessage(sock, msg, sessionNumber) {
       const ctx = {
         sock, msg, from, sender, isGroup: group, isOwner: owner,
         args: [], text, command: noPrefixPlugin.name, prefix: CONFIG.PREFIX, sessionNumber,
-        botNumber: cleanJid(getBotJid(sock)),
+        botNumber: cleanJid(botJid),
         reply: (t, opts = {}) => sock.sendMessage(from, { text: t, ...opts }, { quoted: msg }),
         react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } }).catch(() => {}),
         send: (content, opts = {}) => sock.sendMessage(from, content, { quoted: msg, ...opts }),
@@ -345,7 +349,7 @@ export async function handleMessage(sock, msg, sessionNumber) {
     const ctx = {
       sock, msg, from, sender, isGroup: group, isOwner: owner,
       args, text, command: plugin.name, prefix, sessionNumber,
-      botNumber: cleanJid(getBotJid(sock)), // ✅ Fixed Bot JID
+      botNumber: cleanJid(botJid), // ✅ Fixed Bot JID
       reply: (t, opts = {}) => sock.sendMessage(from, { text: t, ...opts }, { quoted: msg }),
       react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } }).catch(() => {}),
       send: (content, opts = {}) => sock.sendMessage(from, content, { quoted: msg, ...opts }),
