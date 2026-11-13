@@ -1,9 +1,9 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🧩 MESSAGE.JS — ARSLAN MDX (Ultimate v5 - LID Fixed)
+ * 🧩 MESSAGE.JS — ARSLAN MDX (Ultimate v6 - LID Admin Fixed)
  * ═══════════════════════════════════════════════════════════════════
- * ✅ Fixed `@lid` Owner issue (Access Denied fix)
- * ✅ Perfect Self-JID Recognition (Fixes Kick/Promote/Welcome)
+ * ✅ Fixed LID (Linked ID) Admin Recognition (Promote/Kick fix)
+ * ✅ Passes botJid & botLid to plugins for accurate checks
  * ✅ Premium Design for AntiDelete & AntiCall
  * ✅ Strong AntiLink
  */
@@ -32,12 +32,14 @@ let loaded = false;
 const messageCache = new Map();
 
 // ===============================================
-// 🛠️ HELPER: Get Bot's Exact JID
+// 🛠️ HELPER: Get Bot's JID & LID
 // ===============================================
-function getBotJid(sock) {
-  if (!sock.user?.id) return null;
-  const cleanId = sock.user.id.split(':')[0].split('@')[0];
-  return `${cleanId}@s.whatsapp.net`;
+function getBotIdentities(sock) {
+  if (!sock.user?.id) return { jid: null, lid: null, number: null };
+  const jid = sock.user.id.split(':')[0];
+  const lid = sock.user.lid ? sock.user.lid.split(':')[0] : null;
+  const number = jid.split('@')[0];
+  return { jid, lid, number };
 }
 
 // ===============================================
@@ -74,7 +76,7 @@ export async function loadPlugins() {
 }
 
 // ===============================================
-// 🔗 ANTILINK (Strong)
+// 🔗 ANTILINK (Strong with LID Check)
 // ===============================================
 const LINK_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+|chat\.whatsapp\.com\/[^\s]+|wa\.me\/[^\s]+)/i;
 
@@ -89,8 +91,12 @@ async function handleAntilink(sock, msg, from, sender) {
     const isSenderAdmin = meta.participants.some((p) => cleanJid(p.id) === cleanJid(sender) && p.admin);
     if (isSenderAdmin) return false;
 
-    const botJid = getBotJid(sock);
-    const isBotAdmin = meta.participants.some((p) => cleanJid(p.id) === cleanJid(botJid) && p.admin);
+    const { jid: botJid, lid: botLid, number: botNum } = getBotIdentities(sock);
+    const isBotAdmin = meta.participants.some((p) => {
+      const pNum = p.id.split('@')[0];
+      return (p.id === botJid || p.id === botLid || pNum === botNum) && p.admin;
+    });
+    
     if (!isBotAdmin) return false;
 
     await sock.sendMessage(from, { delete: msg.key });
@@ -100,14 +106,14 @@ async function handleAntilink(sock, msg, from, sender) {
 }
 
 // ===============================================
-// 🗑️ ANTI-DELETE (Premium Design & Strong)
+// 🗑️ ANTI-DELETE (Premium Design)
 // ===============================================
 async function handleAntidelete(sock, updates) {
   try {
     const db = await readDb();
     if (!db.global_settings?.antiDelete) return;
 
-    const botJid = getBotJid(sock);
+    const { jid: botJid } = getBotIdentities(sock);
     if (!botJid) return;
 
     for (const u of updates) {
@@ -200,7 +206,7 @@ async function handleAntiCall(sock, calls) {
 }
 
 // ===============================================
-// 👋 WELCOME / GOODBYE (Fixed & Strong)
+// 👋 WELCOME / GOODBYE
 // ===============================================
 async function handleGroupParticipants(sock, update) {
   try {
@@ -208,7 +214,6 @@ async function handleGroupParticipants(sock, update) {
     const settings = await getGroupSettings(id);
     const meta = await sock.groupMetadata(id);
 
-    // 🟢 WELCOME (JOIN)
     if (action === 'add' && settings.welcome) {
       for (const jid of participants) {
         const userNum = jid.split('@')[0];
@@ -225,7 +230,6 @@ async function handleGroupParticipants(sock, update) {
       }
     }
 
-    // 🔴 GOODBYE (LEAVE/KICK)
     if (action === 'remove' && settings.goodbye) {
       for (const jid of participants) {
         const userNum = jid.split('@')[0];
@@ -276,13 +280,15 @@ export async function handleMessage(sock, msg, sessionNumber) {
     const from = msg.key.remoteJid;
     const group = isGroup(from);
     const text = extractText(msg);
+
+    // 🚨 Get exact bot identities
+    const { jid: botJid, lid: botLid, number: botNum } = getBotIdentities(sock);
     
-    // 🚨 FIX: Bot ki LID aur fromMe ko perfectly pehchano
-    const botJid = getBotJid(sock);
+    // Sender logic (Use botJid if fromMe)
     const sender = msg.key.fromMe ? botJid : getSender(msg);
     
-    // Owner true hoga agar message `fromMe` (bot/owner ke phone) se aaya hai
-    const owner = msg.key.fromMe || isOwner(sender) || cleanJid(sender) === cleanJid(botJid);
+    // Owner check (Check against botJid, botLid, or config owner)
+    const owner = msg.key.fromMe || isOwner(sender) || cleanJid(sender) === cleanJid(botJid) || (botLid && cleanJid(sender) === cleanJid(botLid));
 
     if (from === 'status@broadcast' || from.endsWith('@newsletter')) return;
     if (isPayloadBugged(text)) return;
@@ -308,7 +314,7 @@ export async function handleMessage(sock, msg, sessionNumber) {
       const ctx = {
         sock, msg, from, sender, isGroup: group, isOwner: owner,
         args: [], text, command: noPrefixPlugin.name, prefix: CONFIG.PREFIX, sessionNumber,
-        botNumber: cleanJid(botJid),
+        botNumber: botNum, botJid, botLid, // ✅ Passed all identities
         reply: (t, opts = {}) => sock.sendMessage(from, { text: t, ...opts }, { quoted: msg }),
         react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } }).catch(() => {}),
         send: (content, opts = {}) => sock.sendMessage(from, content, { quoted: msg, ...opts }),
@@ -349,7 +355,7 @@ export async function handleMessage(sock, msg, sessionNumber) {
     const ctx = {
       sock, msg, from, sender, isGroup: group, isOwner: owner,
       args, text, command: plugin.name, prefix, sessionNumber,
-      botNumber: cleanJid(botJid), // ✅ Fixed Bot JID
+      botNumber: botNum, botJid, botLid, // ✅ Fixed Bot JID & LID passed here
       reply: (t, opts = {}) => sock.sendMessage(from, { text: t, ...opts }, { quoted: msg }),
       react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } }).catch(() => {}),
       send: (content, opts = {}) => sock.sendMessage(from, content, { quoted: msg, ...opts }),
