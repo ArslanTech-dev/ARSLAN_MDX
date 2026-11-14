@@ -2,7 +2,6 @@
  * ═══════════════════════════════════════════════════════════════════
  * 📥 DOWNLOADER.JS — ARSLAN MDX Downloader Commands
  * ═══════════════════════════════════════════════════════════════════
- * Uses lib/ytmusic.js for download logic
  */
 
 import { downloadYouTubeAudio } from '../lib/ytmusic.js';
@@ -41,21 +40,25 @@ export const play = {
 
       await ctx.react('✅');
 
-      // 🎨 Simple Caption
-      const caption = `> 🎧 *AUDIO DOWNLOADED*
-> 🎵 *Title:* ${title || 'Unknown'}
-> ⏱️ *Duration:* ${duration || 'Unknown'}
-> 👀 *Views:* ${views || 'N/A'}
-> 📺 *Author:* ${author || 'Unknown'}
+      // 🎨 Caption Design
+      const caption = `> 🎧 *AUDIO DOWNLOADED*\n` +
+        `> ────────────────\n` +
+        `> 🎵 \`Title    : ${title || 'Unknown'}\`\n` +
+        `> ⏱️ \`Duration : ${duration || 'Unknown'}\`\n` +
+        `> 👀 \`Views    : ${views || 'N/A'}\`\n` +
+        `> 📺 \`Author   : ${author || 'Unknown'}\`\n` +
+        `> ────────────────\n` +
+        `> 💫 _POWERED BY ARSLAN MD_ 💫`;
 
-> © POWERED BY ARSLAN MD`;
-
-      await ctx.send({
+      // 🚀 1. Audio send karo (bina caption ke)
+      const audioMsg = await ctx.send({
         audio: { url: audioUrl },
         mimetype: 'audio/mp4',
         fileName: `${title || 'audio'}.mp3`,
-        caption: caption
       });
+
+      // 🚀 2. Audio ko reply karke Caption send karo
+      await ctx.send({ text: caption }, { quoted: audioMsg });
 
     } catch (err) {
       logger.error(`[PLAY] Failed: ${err.message}`);
