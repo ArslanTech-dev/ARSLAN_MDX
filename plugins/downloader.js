@@ -1,9 +1,3 @@
-/**
- * ═══════════════════════════════════════════════════════════════════
- * 📥 DOWNLOADER.JS — Play Command (Premium Design)
- * ═══════════════════════════════════════════════════════════════════
- */
-
 import { downloadYouTubeAudio } from '../lib/ytmusic.js';
 import logger from '../utils/logger.js';
 
