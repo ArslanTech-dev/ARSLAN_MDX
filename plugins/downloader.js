@@ -1,5 +1,6 @@
 import { downloadYouTubeAudio } from '../lib/ytmusic.js';
 import logger from '../utils/logger.js';
+import fs from 'fs';
 
 const randomSongs = [
   'Admirin You Karan Aujla', 'Kesariya Brahmastra', 'Tum Hi Ho Aashiqui 2',
@@ -11,15 +12,13 @@ export const play = {
   name: 'play',
   aliases: ['song', 'music', 'ytmp3'],
   async run(ctx) {
-    // 1. Turant reply taake user ko pata chale bot zinda hai
     let waitMsg;
     try {
-      waitMsg = await ctx.reply(`> ⏳ *Processing request...*\n> ╰─➤ Please wait up to 30s.`);
+      waitMsg = await ctx.reply(`> ⏳ *Downloading Audio...*\n> ╰─➤ Please wait up to 30s.`);
       await ctx.react('⏳');
-    } catch (e) {
-      logger.error(`[PLAY] Failed to send wait message: ${e.message}`);
-    }
+    } catch (e) {}
 
+    let filePath = null;
     try {
       let query = ctx.args.join(' ').trim();
       if (!query) {
@@ -27,8 +26,8 @@ export const play = {
       }
 
       logger.info(`[PLAY] Requested: ${query}`);
-
-      // 🚀 Download logic
+      
+      // Download trigger karo
       const result = await downloadYouTubeAudio(query);
 
       await ctx.react('✅');
@@ -36,13 +35,24 @@ export const play = {
       const caption = `> 🎧 *AUDIO DOWNLOADED*\n` +
         `> ────────────────\n` +
         `> 🎵 \`Title  : ${result.title}\`\n` +
-        `> 📺 \`Source : YouTube\`\n` +
+        `> ⏱️ \`Duration: ${result.duration}\`\n` +
+        `> 📺 \`Author : ${result.author}\`\n` +
         `> ────────────────\n` +
         `> 💫 _POWERED BY ARSLAN MD_ 💫`;
 
+      let audioPayload;
+      
+      // Agar direct file hai toh Buffer banao, warna URL use karo
+      if (result.isUrl) {
+          audioPayload = { url: result.audioUrl };
+      } else {
+          filePath = result.filePath;
+          audioPayload = fs.readFileSync(filePath);
+      }
+
       // Audio send karo
       const audioMsg = await ctx.send({
-        audio: { url: result.audioUrl },
+        audio: audioPayload,
         mimetype: 'audio/mp4',
         fileName: `${result.title || 'audio'}.mp3`,
       });
@@ -50,21 +60,19 @@ export const play = {
       // Caption reply karo
       await ctx.send({ text: caption }, { quoted: audioMsg });
 
-      // Wait message delete kar do
-      if (waitMsg && waitMsg.key) {
-         await ctx.sock.sendMessage(ctx.from, { delete: waitMsg.key }).catch(() => {});
-      }
-
     } catch (err) {
       logger.error(`[PLAY] Error: ${err.message}`);
       await ctx.react('❌');
-      
+      await ctx.reply(`> ❌ *Download Failed*\n> ╰─➤ ${err.message}\n\n> © POWERED BY ARSLAN MD`);
+    } finally {
       // Wait message delete karo
       if (waitMsg && waitMsg.key) {
          await ctx.sock.sendMessage(ctx.from, { delete: waitMsg.key }).catch(() => {});
       }
-
-      await ctx.reply(`> ❌ *Download Failed*\n> ╰─➤ ${err.message}\n\n> © POWERED BY ARSLAN MD`);
+      // Temp file delete karo (Storage full na ho)
+      if (filePath && fs.existsSync(filePath)) {
+          try { fs.unlinkSync(filePath); } catch {}
+      }
     }
   },
 };
