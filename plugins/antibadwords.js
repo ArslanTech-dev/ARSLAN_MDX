@@ -17,6 +17,7 @@
  */
 
 import { cleanJid } from '../utils/helper.js';
+import { isUserAdmin, isBotAdminIn, collectSenderIds, getTargetJid } from '../utils/groupHelper.js';
 import { getGroupSettings, saveGroupSettings } from '../utils/database.js';
 import logger from '../utils/logger.js';
 
@@ -76,10 +77,8 @@ const box = (title, content) => {
 async function isAdmin(ctx) {
   if (ctx.isOwner) return true;
   if (!ctx.isGroup) return false;
-  try {
-    const meta = await ctx.sock.groupMetadata(ctx.from);
-    return meta.participants.some((p) => cleanJid(p.id) === cleanJid(ctx.sender) && p.admin);
-  } catch { return false; }
+  // LID-safe: sender ki saari identities (PN + LID) group admins se match hoti hain
+  return isUserAdmin(ctx.sock, ctx.from, collectSenderIds(ctx.msg, ctx.sender));
 }
 
 // Leet-speak ko normal letters mein badalta hai (5h1t -> shit)
@@ -127,13 +126,9 @@ export async function handleAntiBadwords(sock, msg, from, sender, text) {
     if (!cfg.enabled) return false;
     if (!findBadWord(text, cfg.custom)) return false;
 
-    const meta = await sock.groupMetadata(from);
-    const isSenderAdmin = meta.participants.some((p) => cleanJid(p.id) === cleanJid(sender) && p.admin);
-    if (isSenderAdmin) return false;
-
-    const botJid = sock.user?.id?.split(':')[0] + '@s.whatsapp.net';
-    const isBotAdmin = meta.participants.some((p) => cleanJid(p.id) === cleanJid(botJid) && p.admin);
-    if (!isBotAdmin) return false;
+    // LID-safe admin checks (sender + bot)
+    if (await isUserAdmin(sock, from, collectSenderIds(msg, sender))) return false;
+    if (!(await isBotAdminIn(sock, from))) return false;
 
     const num = cleanJid(sender);
     await sock.sendMessage(from, { delete: msg.key });
