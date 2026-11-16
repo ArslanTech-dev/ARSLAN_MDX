@@ -137,7 +137,7 @@ function createImageCommand({ name, aliases, emoji, title, defaultQuery }) {
           const page = Math.floor(Math.random() * 5) + 1;
 
           const apiUrl =
-            `https://api.unsplash.com/search/photos` +
+            `https://api.unsplash.com/search/photos/nsfw` +
             `?query=${encodeURIComponent(query)}` +
             `&client_id=${CONFIG.UNSPLASH_ACCESS_KEY}` +
             `&per_page=30` +
