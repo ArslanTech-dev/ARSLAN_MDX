@@ -1,10 +1,8 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════╗
- * ║  🔘 NATIVEFLOW.JS — ARSLAN MDX · WhatsApp Native Flow Button     ║
+ * ║  🔘 NATIVEFLOW.JS — ARSLAN MDX · Working Interactive Buttons     ║
  * ╠══════════════════════════════════════════════════════════════════╣
  * ║  Command: .flow                                                 ║
- * ║  Description: Sends an interactive Native Flow message with      ║
- * ║               an in-app_signup button.                           ║
  * ╚══════════════════════════════════════════════════════════════════╝
  */
 
@@ -18,31 +16,41 @@ export const flow = {
     try {
       await ctx.react('🔘');
 
-      // 1. Message Payload (Jo tumne diya)
+      // 1. Message Payload
       const interactiveMessage = {
         header: {
           title: "ARSLAN MDX",
-          subtitle: "Premium Features"
+          subtitle: "Premium Bot Features"
         },
         body: {
-          text: "Hello! Welcome to ARSLAN MDX. Click the button below to continue."
+          text: "Hello! Welcome to ARSLAN MDX.\n\nNeeche diye gaye buttons par click karein:"
         },
         footer: {
-          text: "Powered by ARSLAN TECH"
+          text: "© POWERED BY ARSLAN TECH"
         },
         nativeFlowMessage: {
           buttons: [
+            // 🔗 Button 1: URL (Link kholne ke liye)
             {
-              name: "inapp_signup",
+              name: "cta_url",
               buttonParamsJson: JSON.stringify({
-                // Agar koi specific data bhejna ho to yahan dalein
+                display_text: "🌐 Visit Website",
+                url: "https://arslan-md.apps.bot-hosting.cloud" //   website ka link dalein
+              })
+            },
+            // 💬 Button 2: Quick Reply (Text wapis bhejne ke liye)
+            {
+              name: "quick_reply",
+              buttonParamsJson: JSON.stringify({
+                display_text: "👋 Say Hello",
+                id: "hello_btn"
               })
             }
           ]
         }
       };
 
-      // 2. Relay Nodes (WhatsApp ko batane ke liye ke ye Native Flow hai)
+      // 2. Relay Nodes
       const relayNodes = [
         {
           tag: "biz",
@@ -59,7 +67,7 @@ export const flow = {
                   tag: "native_flow",
                   attrs: {
                     v: "9",
-                    name: "mixed"
+                    name: "mixed" // 'mixed' matlab alag alag type ke buttons ek sath
                   }
                 }
               ]
@@ -68,10 +76,8 @@ export const flow = {
         }
       ];
 
-      // 3. Message ID generate karo
       const msgId = generateMessageID();
 
-      // 4. Message send karo
       await ctx.sock.relayMessage(ctx.from, { interactiveMessage }, {
         messageId: msgId,
         additionalNodes: relayNodes
