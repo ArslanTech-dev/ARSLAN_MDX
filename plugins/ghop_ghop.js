@@ -57,7 +57,7 @@ async function fetchRomanticImage(query) {
 
     // Method 2: Anime Romantic Fallback (Waifu.pics)
     try {
-        const res = await axios.get(`https://api.waifu.pics/nsfw/boobs`, { timeout: 8000 });
+        const res = await axios.get(`https://api.waifu.pics/nsfw`, { timeout: 8000 });
         if (res.data?.url) return res.data.url;
     } catch (err) {
         logger.warn(`[ROMANTIC] Anime fallback failed too.`);
