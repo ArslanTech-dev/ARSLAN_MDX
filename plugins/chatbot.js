@@ -1,9 +1,9 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════╗
- * ║  🤖 CHATBOT.JS — ARSLAN MDX · AI Auto-Reply System (Premium)     ║
+ * ║  🤖 CHATBOT.JS — ARSLAN MDX · AI Auto-Reply System (v2 Memory)   ║
  * ╠══════════════════════════════════════════════════════════════════╣
- * ║  Command: .chatbot                                               ║
- * ║  Engine: Pollinations AI (Free & Unlimited)                      ║
+ * ║  Engine: Pollinations AI                                         ║
+ * ║  Features: Chat Memory, Identity, Language Lock (Urdu/English)   ║
  * ╚══════════════════════════════════════════════════════════════════╝
  */
 
@@ -15,8 +15,12 @@ import logger from '../utils/logger.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CHATBOT_DATA = path.join(__dirname, '..', 'data', 'chatbot.json');
 
+// 🧠 MEMORY SYSTEM (User ki pichli baatein yaad rakhne ke liye)
+const chatMemory = new Map(); 
+const MAX_MEMORY_MESSAGES = 6; // Sirf aakhri 6 messages yaad rakhega
+
 // ═══════════════════════════════════════════════════════════════════
-// 🔤 BOLD SERIF FONT
+// 🔤 BOLD SERIF FONT & UI
 // ═══════════════════════════════════════════════════════════════════
 const BOLD = {
   '0':'𝟎','1':'𝟏','2':'𝟐','3':'𝟑','4':'𝟒','5':'𝟓','6':'𝟔','7':'𝟕','8':'𝟖','9':'𝟗',
@@ -29,9 +33,6 @@ const BOLD = {
 };
 const bold = (s) => String(s).replace(/[0-9A-Za-z]/g, (c) => BOLD[c] || c);
 
-// ═══════════════════════════════════════════════════════════════════
-// 🛠️ HELPERS & UI
-// ═══════════════════════════════════════════════════════════════════
 function loadChatbotData() {
     try {
         if (fs.existsSync(CHATBOT_DATA)) return JSON.parse(fs.readFileSync(CHATBOT_DATA, 'utf8'));
@@ -97,7 +98,7 @@ export const chatbot = {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// 2. AUTO-RESPONSE HANDLER (Message.js se call hoga)
+// 2. AUTO-RESPONSE HANDLER (With Memory & Identity)
 // ═══════════════════════════════════════════════════════════════════
 export async function handleChatbotResponse(sock, msg, chatId, userMessage) {
     try {
@@ -116,21 +117,42 @@ export async function handleChatbotResponse(sock, msg, chatId, userMessage) {
             }
         }
 
-        // Ignore commands & bot's own messages
         if (userMessage.startsWith('.') || msg.key.fromMe) return;
 
-        // AI Prompt
-        const prompt = `You are a friendly WhatsApp user chatting casually. Be short, natural, use emojis. Match the vibe. Don't sound like AI, talk like a real person.\n\nMessage: ${userMessage}`;
+        // User Details
+        const senderJid = msg.key.participant || msg.key.remoteJid;
+        const userName = msg.pushName || 'User';
+        
+        // 🧠 Memory Nikaalo (Agar pehle baat hui hai)
+        let history = chatMemory.get(senderJid) || [];
 
-        // Typing indicator
+        // AI ki Personality (System Prompt)
+        const systemPrompt = 
+            `You are "ARSLAN MDX", a smart, friendly, and slightly witty WhatsApp AI bot created by "Arslan Tech".\n` +
+            `The person you are talking to is named "${userName}".\n\n` +
+            `STRICT RULES:\n` +
+            `1. ALWAYS reply in Roman Urdu (Hinglish) OR English, matching the user's language. NEVER reply in Portuguese, Spanish, or random languages.\n` +
+            `2. If asked "Who are you?", tell them you are ARSLAN MDX AI, developed by Arslan Tech from Pakistan.\n` +
+            `3. If asked "Who is Arslan?", tell them he is a genius developer and the creator of this bot.\n` +
+            `4. Keep replies short, human-like, and use emojis. Do not give long paragraphs.\n` +
+            `5. Do not sound robotic. Act like a helpful friend.`;
+
+        // Messages Array for API
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            ...history,
+            { role: 'user', content: userMessage }
+        ];
+
         await sock.sendPresenceUpdate('composing', chatId).catch(() => {});
 
+        // Fetch AI Response
         const response = await fetch('https://text.pollinations.ai/openai', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: 'openai',
-                messages: [{ role: 'user', content: prompt }]
+                messages: messages
             })
         });
 
@@ -140,6 +162,16 @@ export async function handleChatbotResponse(sock, msg, chatId, userMessage) {
         const replyText = result.choices?.[0]?.message?.content;
 
         if (replyText && replyText.length > 2) {
+            // 🧠 Memory Update karo
+            history.push({ role: 'user', content: userMessage });
+            history.push({ role: 'assistant', content: replyText.trim() });
+            
+            // Memory limit (Sirf aakhri 6 messages)
+            if (history.length > MAX_MEMORY_MESSAGES) {
+                history = history.slice(history.length - MAX_MEMORY_MESSAGES);
+            }
+            chatMemory.set(senderJid, history);
+
             await sock.sendMessage(chatId, { text: replyText.trim() }, { quoted: msg });
         }
 
