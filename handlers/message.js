@@ -1,16 +1,12 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * 🧩 MESSAGE.JS — ARSLAN MDX (Ultimate v6 — LID Safe + Strong Guards)
+ * 🧩 MESSAGE.JS — ARSLAN MDX (Ultimate v6.1 — LID Safe + Chatbot)
  * ═══════════════════════════════════════════════════════════════════
- * ✅ Bot apni pehchan (PN + LID) khud jaanta hai → "I need to be Admin!" fix
- * ✅ Group admin/owner checks LID-safe (utils/groupHelper.js se)
- * ✅ Proper mentions: ctx.reply/send mein "@number" khud mention ban jata hai
- * ✅ Strong AntiLink   (delete / warn x3 / kick, admins + owner exempt)
- * ✅ Strong AntiDelete (media pehle se cache, revoke event + update event dono)
- * ✅ Strong AntiCall   (voice/video, duplicate-proof, owner allowed)
- * ✅ Welcome / Goodbye (profile pic, member count, "removed by @admin")
- * ✅ No-prefix plugins (viewonce2 etc.) bina read-receipt ke
- * ✅ Purane messages (2 min se zyada) ignore — reconnect par old cmds replay nahi
+ * ✅ Added AI Chatbot Auto-Reply (Pollinations)
+ * ✅ Bot apni pehchan (PN + LID) khud jaanta hai 
+ * ✅ Group admin/owner checks LID-safe
+ * ✅ Proper mentions, Strong AntiLink, AntiDelete, AntiCall
+ * ✅ Welcome / Goodbye, No-prefix plugins, Purane messages ignore
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -24,6 +20,7 @@ import { getGroupSettings, readDb } from '../utils/database.js';
 import { isPayloadBugged } from '../utils/antibugEngine.js';
 import { isSpamming } from '../utils/antispamEngine.js';
 import { handleAntiBadwords } from '../plugins/antibadwords.js';
+import { handleChatbotResponse } from '../plugins/chatbot.js'; // 🆕 AI Chatbot Import
 import {
   digits, isLidJid, getBotIdentity, isBotJid, participantIds, findParticipant,
   collectSenderIds, getGroupMeta, getCachedMeta, invalidateGroupMeta,
@@ -106,13 +103,11 @@ const LINK_PATTERNS = [
   /(?:https?|ftp):\/\/\S+/i,
   /\bwww\.[^\s]+/i,
   /\b(?:chat\.whatsapp\.com|wa\.me|whatsapp\.com\/channel|t\.me|telegram\.me|discord\.gg|discord\.com\/invite|youtu\.be|instagram\.com|facebook\.com|fb\.com|tiktok\.com|bit\.ly|tinyurl\.com)\/?\S*/i,
-  // bina http ke domain: example.com / site.pk/abc  (email ke andar wale nahi)
   /(?<![@\w.-])(?:[a-z0-9-]+\.)+(?:com|net|org|io|me|gg|xyz|info|co|pk|in|tv|app|link|site|online|club|top|shop|store|ly|to|cc|ru|ai|dev|live|vip|fun|pro|biz|us|uk|ws|tk|ml|ga|cf|gq)\b(?:\/\S*)?/i
 ];
 
 const hasLink = (text) => !!text && LINK_PATTERNS.some((re) => re.test(text));
 
-/** Message ka saara text (caption, link preview, wrapped messages sab) */
 function extractAllText(msg) {
   const parts = [extractText(msg)];
   try {
@@ -128,7 +123,7 @@ function extractAllText(msg) {
   return [...new Set(parts.filter(Boolean))].join('\n');
 }
 
-const linkWarns = new Map(); // "group|user" -> { count, ts }
+const linkWarns = new Map();
 const LINK_WARN_LIMIT = 3;
 const LINK_WARN_TTL = 60 * 60 * 1000;
 
@@ -138,8 +133,8 @@ async function handleAntilink(sock, msg, from, sender, senderIds) {
     if (!settings.antilink) return false;
     if (!hasLink(extractAllText(msg))) return false;
 
-    if (await isUserAdmin(sock, from, senderIds)) return false;      // admins exempt
-    if (!(await isBotAdminIn(sock, from))) return false;            // delete ke liye bot admin zaroori
+    if (await isUserAdmin(sock, from, senderIds)) return false;
+    if (!(await isBotAdminIn(sock, from))) return false;
 
     await sock.sendMessage(from, { delete: msg.key });
 
@@ -150,9 +145,7 @@ async function handleAntilink(sock, msg, from, sender, senderIds) {
     if (action === 'kick') {
       await sock.groupParticipantsUpdate(from, [sender], 'remove').catch(() => {});
       await sock.sendMessage(from, {
-        text:
-          `> 🔗 *ANTI-LINK*\n> ────────────────\n` +
-          `> 👤 *User:* ${tag}\n> 🚫 Link bheja — group se remove kar diya.\n> ────────────────\n${footer}`,
+        text: `> 🔗 *ANTI-LINK*\n> ────────────────\n> 👤 *User:* ${tag}\n> 🚫 Link bheja — group se remove kar diya.\n> ────────────────\n${footer}`,
         mentions: [sender]
       });
     } else if (action === 'warn') {
@@ -167,21 +160,16 @@ async function handleAntilink(sock, msg, from, sender, senderIds) {
         linkWarns.delete(key);
         await sock.groupParticipantsUpdate(from, [sender], 'remove').catch(() => {});
         await sock.sendMessage(from, {
-          text:
-            `> 🔗 *ANTI-LINK*\n> ────────────────\n` +
-            `> 👤 *User:* ${tag}\n> 🚫 ${LINK_WARN_LIMIT}/${LINK_WARN_LIMIT} warnings — remove kar diya.\n> ────────────────\n${footer}`,
+          text: `> 🔗 *ANTI-LINK*\n> ────────────────\n> 👤 *User:* ${tag}\n> 🚫 ${LINK_WARN_LIMIT}/${LINK_WARN_LIMIT} warnings — remove kar diya.\n> ────────────────\n${footer}`,
           mentions: [sender]
         });
       } else {
         await sock.sendMessage(from, {
-          text:
-            `> 🔗 *ANTI-LINK*\n> ────────────────\n` +
-            `> 👤 *User:* ${tag}\n> ⚠️ *Warning:* ${count}/${LINK_WARN_LIMIT}\n> 🚫 Is group mein links allowed nahi hain.\n> ────────────────\n${footer}`,
+          text: `> 🔗 *ANTI-LINK*\n> ────────────────\n> 👤 *User:* ${tag}\n> ⚠️ *Warning:* ${count}/${LINK_WARN_LIMIT}\n> 🚫 Is group mein links allowed nahi hain.\n> ────────────────\n${footer}`,
           mentions: [sender]
         });
       }
-    } // 'delete' → sirf silent delete
-
+    }
     logger.info(`[ANTILINK] ${action} → ${digits(sender)} in ${from}`);
     return true;
   } catch (err) {
@@ -191,20 +179,17 @@ async function handleAntilink(sock, msg, from, sender, senderIds) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 🗑️ ANTI-DELETE (Strong — media pehle se cache)
+// 🗑️ ANTI-DELETE (Strong)
 // ═══════════════════════════════════════════════════════════════════
-const messageCache = new Map(); // msgId -> entry
+const messageCache = new Map();
 const CACHE_MAX_MSGS = 1500;
-const MEDIA_MAX_BYTES = 8 * 1024 * 1024;     // ek media ki limit
-const MEDIA_CACHE_BUDGET = 80 * 1024 * 1024; // total media cache
+const MEDIA_MAX_BYTES = 8 * 1024 * 1024;
+const MEDIA_CACHE_BUDGET = 80 * 1024 * 1024;
 let mediaBytes = 0;
 
 const MEDIA_KINDS = [
-  ['imageMessage', 'image'],
-  ['videoMessage', 'video'],
-  ['audioMessage', 'audio'],
-  ['stickerMessage', 'sticker'],
-  ['documentMessage', 'document']
+  ['imageMessage', 'image'], ['videoMessage', 'video'], ['audioMessage', 'audio'],
+  ['stickerMessage', 'sticker'], ['documentMessage', 'document']
 ];
 
 function pickMedia(content) {
@@ -240,7 +225,6 @@ async function downloadNode(node, type) {
   return Buffer.concat(chunks);
 }
 
-/** Message aate hi (delete se pehle) chhota media download kar lo */
 async function prefetchMedia(id) {
   const entry = messageCache.get(id);
   if (!entry) return;
@@ -252,19 +236,12 @@ async function prefetchMedia(id) {
     const buffer = await downloadNode(spec.node, spec.type);
     if (!messageCache.has(id)) return;
     entry.media = {
-      type: spec.type,
-      buffer,
-      mimetype: spec.node.mimetype,
-      fileName: spec.node.fileName,
-      ptt: !!spec.node.ptt,
-      gif: !!spec.node.gifPlayback,
-      caption: spec.node.caption || ''
+      type: spec.type, buffer, mimetype: spec.node.mimetype, fileName: spec.node.fileName,
+      ptt: !!spec.node.ptt, gif: !!spec.node.gifPlayback, caption: spec.node.caption || ''
     };
     mediaBytes += buffer.length;
     evictOldest();
-  } catch {
-    // media expire / bohot badi — delete par dobara try hoga
-  }
+  } catch {}
 }
 
 function cacheForAntiDelete(msg, from, sender, senderPn) {
@@ -272,7 +249,7 @@ function cacheForAntiDelete(msg, from, sender, senderPn) {
   if (!id) return;
   messageCache.set(id, { msg, from, sender, senderPn, pushName: msg.pushName || '', ts: Date.now(), media: null, handled: false });
   evictOldest();
-  prefetchMedia(id); // fire & forget
+  prefetchMedia(id);
 }
 
 async function handleAntidelete(sock, updates) {
@@ -286,11 +263,14 @@ async function handleAntidelete(sock, updates) {
 
     for (const u of updates) {
       const st = u.update?.messageStubType;
-      const isDeleted =
-        u.update?.message === null ||
-        st === 1 || st === 'REVOKE' ||
-        u.update?.messageStubParameters?.[0] === 'Message deleted';
+      const isDeleted = u.update?.message === null || st === 1 || st === 'REVOKE' || u.update?.messageStubParameters?.[0] === 'Message deleted';
       if (!isDeleted || !u.key?.id) continue;
+
+      // 🚨 FIX: Agar owner ne khud message delete kiya hai, toh ignore karo
+      if (u.key.fromMe === true) {
+          dropEntry(u.key.id);
+          continue;
+      }
 
       const entry = messageCache.get(u.key.id);
       if (!entry || entry.handled) continue;
@@ -302,7 +282,6 @@ async function handleAntidelete(sock, updates) {
         continue;
       }
 
-      // Group ka naam
       let chatLabel = 'DM';
       if (isGroup(from)) {
         const meta = getCachedMeta(from) || (await getGroupMeta(sock, from));
@@ -337,7 +316,6 @@ async function handleAntidelete(sock, updates) {
           else if (media.type === 'video') await sock.sendMessage(inbox, { video: media.buffer, caption: cap, mimetype: media.mimetype, gifPlayback: media.gif, mentions: [mentionJid] });
           else if (media.type === 'document') await sock.sendMessage(inbox, { document: media.buffer, mimetype: media.mimetype || 'application/octet-stream', fileName: media.fileName || 'file', caption: cap, mentions: [mentionJid] });
           else {
-            // audio / sticker: pehle details, phir media
             await sock.sendMessage(inbox, { text: header, mentions: [mentionJid] });
             if (media.type === 'audio') await sock.sendMessage(inbox, { audio: media.buffer, mimetype: media.mimetype || 'audio/mp4', ptt: media.ptt });
             else await sock.sendMessage(inbox, { sticker: media.buffer });
@@ -377,7 +355,6 @@ async function handleAntiCall(sock, calls) {
       handledCalls.add(call.id);
       if (handledCalls.size > 200) handledCalls.delete(handledCalls.values().next().value);
 
-      // Bot khud / owner ki call allow
       const ids = [call.from, call.callerPn, call.chatId].map(digits).filter(Boolean);
       if (ids.some((d) => d === ownerDigits) || ids.some((d) => getBotIdentity(sock).ids.has(d))) continue;
 
@@ -388,7 +365,7 @@ async function handleAntiCall(sock, calls) {
         continue;
       }
 
-      if (call.isGroup) continue; // group call: sirf reject, DM nahi
+      if (call.isGroup) continue;
 
       const kind = call.isVideo ? 'Video Call' : 'Voice Call';
       const callMsg =
@@ -409,19 +386,15 @@ async function handleAntiCall(sock, calls) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 👋 WELCOME / GOODBYE (Strong)
+// 👋 WELCOME / GOODBYE
 // ═══════════════════════════════════════════════════════════════════
 function normalizeParticipants(list) {
-  return (list || [])
-    .map((p) => {
-      if (typeof p === 'string') {
-        return { id: p, pn: p.endsWith('@s.whatsapp.net') ? p : null };
-      }
+  return (list || []).map((p) => {
+      if (typeof p === 'string') return { id: p, pn: p.endsWith('@s.whatsapp.net') ? p : null };
       const id = p.id || p.lid || p.phoneNumber;
       const pn = p.phoneNumber ? asPnJid(p.phoneNumber) : String(id).endsWith('@s.whatsapp.net') ? id : null;
       return { id, pn };
-    })
-    .filter((p) => p.id);
+    }).filter((p) => p.id);
 }
 
 async function getProfilePic(sock, jid) {
@@ -430,15 +403,13 @@ async function getProfilePic(sock, jid) {
       sock.profilePictureUrl(jid, 'image'),
       new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))
     ]);
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 async function handleGroupParticipants(sock, update) {
   const { id, participants, action, author, authorPn } = update || {};
   try {
-    invalidateGroupMeta(id); // naya member / remove ke baad metadata badal jata hai
+    invalidateGroupMeta(id);
     if (action !== 'add' && action !== 'remove') return;
 
     const settings = await getGroupSettings(id);
@@ -454,7 +425,6 @@ async function handleGroupParticipants(sock, update) {
     const identity = getBotIdentity(sock);
 
     for (const p of list) {
-      // Bot khud add/remove hua to kuch na bhejo
       if (identity.ids.has(digits(p.id)) || (p.pn && identity.ids.has(digits(p.pn)))) continue;
 
       const mentionJid = bestMentionJid(p.pn, p.id);
@@ -486,7 +456,7 @@ async function handleGroupParticipants(sock, update) {
           `> 💔 *GOODBYE*\n` +
           `> ────────────────\n` +
           (remover
-            ? `> 👋 ${tag} ko group se remove kar diya gaya.\n> 🛑 *Removed by:* @${digits(byJid)}\n`
+            ? `> 👋 ${tag} User from group removed.\n> 🛑 *Removed by:* @${digits(byJid)}\n`
             : `> 👋 ${tag} has left the group.\n`) +
           `> 🥀 We will miss you in *${subject}*.\n` +
           (count ? `> 👥 \`Members : ${count}\`\n` : '') +
@@ -529,24 +499,15 @@ function buildCtx({ sock, msg, from, sender, senderPn, senderIds, group, owner, 
   return {
     sock, msg, from, sender, isGroup: group, isOwner: owner,
     args, text, command, prefix, sessionNumber,
-
-    // 🤖 Bot ki apni pehchan
-    botNumber: identity.pn,          // PN number (purani plugins ke liye)
-    botLid: identity.lid,            // LID number
+    botNumber: identity.pn,
+    botLid: identity.lid,
     botJid: identity.pnJid,
     botIds: [...identity.ids],
     isBot: (jid) => identity.ids.has(digits(jid)),
-
-    // 👤 Bhejne wale ki pehchan
-    senderPn,
-    senderIds: [...senderIds],
-
-    // 👥 Group helpers (LID-safe)
+    senderPn, senderIds: [...senderIds],
     getMeta: (fresh = false) => (group ? getGroupMeta(sock, from, { fresh }) : Promise.resolve(null)),
     isSenderAdmin: () => (group ? isUserAdmin(sock, from, senderIds) : Promise.resolve(false)),
     isBotAdmin: () => (group ? isBotAdminIn(sock, from) : Promise.resolve(false)),
-
-    // 💬 Reply / send (mentions khud ban jate hain)
     reply: (t, opts = {}) => sock.sendMessage(from, withMentions(from, { text: t, ...opts }), { quoted: msg }),
     react: (emoji) => sock.sendMessage(from, { react: { text: emoji, key: msg.key } }).catch(() => {}),
     send: (content, opts = {}) => sock.sendMessage(from, withMentions(from, content), { quoted: msg, ...opts }),
@@ -561,11 +522,9 @@ export async function handleMessage(sock, rawMsg, sessionNumber) {
     await loadPlugins();
     if (!rawMsg?.message) return;
 
-    // Ephemeral / view-once / edited wrappers ko seedha karo (plugins ko seedha content milta hai)
     const inner = normalizeMessageContent(rawMsg.message) || rawMsg.message;
     const msg = inner === rawMsg.message ? rawMsg : { ...rawMsg, message: inner };
 
-    // 🗑️ Delete (revoke) event upsert ke zariye aaye to
     const proto = inner.protocolMessage;
     if (proto) {
       if ((proto.type === 0 || proto.type === 'REVOKE') && proto.key?.id) {
@@ -577,7 +536,6 @@ export async function handleMessage(sock, rawMsg, sessionNumber) {
     const from = msg.key.remoteJid;
     if (!from || from === 'status@broadcast' || from.endsWith('@newsletter')) return;
 
-    // Purane messages (reconnect / history) par kuch na karo
     const ts = toNum(msg.messageTimestamp);
     if (ts && Date.now() / 1000 - ts > MAX_MSG_AGE_SEC) return;
 
@@ -585,21 +543,18 @@ export async function handleMessage(sock, rawMsg, sessionNumber) {
     const text = extractText(msg);
     const prefix = CONFIG.PREFIX;
 
-    // 🤖 Bot ki pehchan (PN + LID)
     const identity = getBotIdentity(sock);
     const botJid = identity.pnJid || identity.lidJid;
     const sender = msg.key.fromMe ? botJid : getSender(msg);
 
     if (isPayloadBugged(text)) return;
 
-    // Sender ki saari identities (PN, LID, participantAlt...)
     const senderIds = collectSenderIds(msg, sender);
     if (msg.key.fromMe) for (const d of identity.ids) senderIds.add(d);
 
     const altPn = [msg.key.participantAlt, msg.key.remoteJidAlt].find((j) => String(j || '').endsWith('@s.whatsapp.net'));
     const senderPn = msg.key.fromMe ? identity.pnJid : (String(sender).endsWith('@s.whatsapp.net') ? sender : altPn || null);
 
-    // 👑 Owner? (fromMe / bot khud / OWNER_NUMBER — LID ho to group metadata se PN nikalo)
     const ownerDigits = digits(CONFIG.OWNER_NUMBER);
     const ownerNow = () => msg.key.fromMe === true || isOwner(sender) || [...senderIds].some((d) => d === ownerDigits || identity.ids.has(d));
     let owner = ownerNow();
@@ -614,13 +569,11 @@ export async function handleMessage(sock, rawMsg, sessionNumber) {
       owner = ownerNow();
     }
 
-    // 🚦 Anti-Spam
     if (!owner) {
       const spamCheck = await isSpamming(sender);
       if (spamCheck.spam) return;
     }
 
-    // 🗑️ Anti-Delete cache (media pehle se download hota hai)
     try {
       const db = await readDb();
       if (db.global_settings?.antiDelete && !msg.key.fromMe) {
@@ -628,7 +581,7 @@ export async function handleMessage(sock, rawMsg, sessionNumber) {
       }
     } catch {}
 
-    // 🆕 NO-PREFIX PLUGIN (jaise viewonce2) — reply hona zaroori
+    // 🆕 NO-PREFIX PLUGIN
     if (noPrefixPlugin && hasReply(msg) && !(noPrefixPlugin.ownerOnly && !owner)) {
       const ctx = buildCtx({
         sock, msg, from, sender, senderPn, senderIds, group, owner,
@@ -638,19 +591,17 @@ export async function handleMessage(sock, rawMsg, sessionNumber) {
       let handled = true;
       try {
         const result = await noPrefixPlugin.run(ctx);
-        if (result === false) handled = false; // plugin ne kaha "ye mere liye nahi" → normal flow
+        if (result === false) handled = false;
       } catch (err) {
         logger.error(`[NoPrefix] ${err.message}`);
       }
       if (handled) return;
     }
 
-    // Bot ke apne non-command messages skip
     if (msg.key.fromMe) {
       if (!text || !text.startsWith(prefix)) return;
     }
 
-    // 🚫 Anti-Badwords + 🔗 Anti-Link (sirf group, owner/bot exempt)
     if (group && !owner && !msg.key.fromMe) {
       if (text && (await handleAntiBadwords(sock, msg, from, sender, text))) return;
       if (await handleAntilink(sock, msg, from, sender, senderIds)) return;
@@ -658,9 +609,16 @@ export async function handleMessage(sock, rawMsg, sessionNumber) {
 
     if (!text) return;
 
-    // PREFIX COMMANDS
-    if (!text.startsWith(prefix)) return;
+    // 🆕 CHATBOT AI AUTO-REPLY
+    // Agar message kisi prefix se shuru nahi hota aur chatbot on hai, toh AI reply karega
+    if (!text.startsWith(prefix)) {
+        handleChatbotResponse(sock, msg, from, text, sessionNumber).catch((err) => {
+            logger.error(`[CHATBOT] Error: ${err.message}`);
+        });
+        return; // Prefix command nahi hai, toh aage mat badho
+    }
 
+    // PREFIX COMMANDS
     const parts = text.slice(prefix.length).trim().split(/\s+/);
     const cmdRaw = (parts[0] || '').toLowerCase();
     const args = parts.slice(1);
