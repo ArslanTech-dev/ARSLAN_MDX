@@ -113,11 +113,11 @@ function createRomanticCommand({ name, aliases, emoji, title, defaultQuery }) {
 
 // 💖 1. General Romantic
 export const romantic = createRomanticCommand({
-    name: 'boobs',
+    name: 'nsfw',
     aliases: ['tits', 'milk'],
     emoji: '💋',
     title: 'ROMANTIC PICTURE',
-    defaultQuery: 'boobs'
+    defaultQuery: 'nsfw'
 });
 
 // ❤️ 2. Love / Hearts
