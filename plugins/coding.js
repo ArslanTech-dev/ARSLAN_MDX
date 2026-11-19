@@ -39,8 +39,8 @@ function onCooldown(ctx) {
 // 1. AI CODER — Write / Explain Code
 // ═══════════════════════════════════════════════════════════════════
 export const ai = {
-  name: 'ai',
-  aliases: ['code', 'gpt', 'ask'],
+  name: 'wc',
+  aliases: [ 'dev', 'ask'],
   async run(ctx) {
     let prompt = ctx.args.join(' ');
     if (!prompt) return ctx.reply(`> ❌ *${bold('USAGE')}*\n> ╰─➤ .ai write a python script to hack nasa`);
